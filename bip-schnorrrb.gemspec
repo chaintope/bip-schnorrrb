@@ -4,14 +4,14 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require "schnorr/version"
 
 Gem::Specification.new do |spec|
-  spec.name          = "schnorr"
+  spec.name          = "bip-schnorr"
   spec.version       = Schnorr::VERSION
   spec.authors       = ["azuchi"]
   spec.email         = ["azuchi@chaintope.com"]
 
-  spec.summary       = %q{The ruby implementation of Schnorr signature.}
-  spec.description   = %q{The ruby implementation of Schnorr signature.}
-  spec.homepage      = "https://github.com/chaintope/schnorrrb"
+  spec.summary       = %q{The ruby implementation of bip-schnorr.}
+  spec.description   = %q{The ruby implementation of bip-schnorr.}
+  spec.homepage      = "https://github.com/chaintope/bip-schnorrrb"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0").reject do |f|
