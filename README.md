@@ -73,4 +73,4 @@ This library changes the following functions of `ecdsa` gem in `lib/schnorr/ec_p
 * `ECDSA::Point` class has following two instance methods.
     * `#has_square_y?` check this point does not infinity and square?(y coordinate)
     * `#square?(x)` check whether `x` is a quadratic residue modulo p.
-* `ECDSA::Format::PointOctetString`
+* `ECDSA::Format::PointOctetString#decode` supports decoding only from x coordinate.
