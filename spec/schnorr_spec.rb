@@ -27,25 +27,4 @@ RSpec.describe Schnorr do
     end
   end
 
-  describe 'batch verification' do
-    context 'valid signatures' do
-      it 'should be return true' do
-        valids = vectors.select{|v|v['verification result'] == 'TRUE'}
-        pubkeys = valids.map{|v|[v['public key']].pack('H*')}
-        messages = valids.map{|v|[v['message']].pack('H*')}
-        signatures = valids.map{|v|[v['signature']].pack('H*')}
-        expect(Schnorr.valid_sigs?(messages, pubkeys, signatures)).to be true
-      end
-    end
-
-    context 'invalid signatures' do
-      it 'should be return false' do
-        pubkeys = vectors.map{|v|[v['public key']].pack('H*')}
-        messages = vectors.map{|v|[v['message']].pack('H*')}
-        signatures = vectors.map{|v|[v['signature']].pack('H*')}
-        expect(Schnorr.valid_sigs?(messages, pubkeys, signatures)).to be false
-      end
-    end
-  end
-
 end

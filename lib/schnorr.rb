@@ -43,47 +43,6 @@ module Schnorr
     false
   end
 
-  # Batch verification
-  # @param messages (Array[String]) The array of message with binary format.
-  # @param public_keys (Array[String]) The array of public key with binary format.
-  # @param signatures (Array[String]) The array of signatures with binary format.
-  # @return (Boolean) whether signature is valid.
-  def valid_sigs?(messages, public_keys, signatures)
-    raise ArgumentError, 'all parameters must be an array with the same length.' if messages.size != public_keys.size || public_keys.size != signatures.size
-    field = GROUP.field
-    pubkeys = public_keys.map{|p| ECDSA::Format::PointOctetString.decode(p, GROUP)}
-    sigs = signatures.map do|signature|
-      sig = Schnorr::Signature.decode(signature)
-      raise Schnorr::InvalidSignatureError, 'Invalid signature: r is not in the field.' unless field.include?(sig.r)
-      raise Schnorr::InvalidSignatureError, 'Invalid signature: s is not in the field.' unless field.include?(sig.s)
-      raise Schnorr::InvalidSignatureError, 'Invalid signature: r is zero.' if sig.r.zero?
-      raise Schnorr::InvalidSignatureError, 'Invalid signature: s is zero.' if sig.s.zero?
-      sig
-    end
-    left = 0
-    right = nil
-    pubkeys.each_with_index do |pubkey, i|
-      r = sigs[i].r
-      s = sigs[i].s
-      e = create_challenge(r, pubkey, messages[i], GROUP)
-      c = field.mod(r.pow(3) + 7)
-      y = c.pow((field.prime + 1)/4, field.prime)
-      raise Schnorr::InvalidSignatureError, 'c is not equal to y^2.' unless c == y.pow(2, field.prime)
-      r_point = ECDSA::Point.new(GROUP, r, y)
-      if i == 0
-        left = s
-        right = r_point + pubkey.multiply_by_scalar(e)
-      else
-        a = 1 + SecureRandom.random_number(GROUP.order - 1)
-        left += (a * s)
-        right += (r_point.multiply_by_scalar(a) + pubkey.multiply_by_scalar(a * e))
-      end
-    end
-    GROUP.new_point(left) == right
-  rescue InvalidSignatureError, ECDSA::Format::DecodeError
-    false
-  end
-
   # Verifies the given {Signature} and raises an {InvalidSignatureError} if it is invalid.
   # @param message (String) A message to be signed with binary format.
   # @param public_key (String) The public key with binary format.
