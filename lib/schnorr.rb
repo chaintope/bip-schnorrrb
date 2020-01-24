@@ -27,7 +27,7 @@ module Schnorr
 
     k = r.has_square_y? ? k0 : GROUP.order - k0
 
-    e = create_challenge(r.x, p, message, GROUP)
+    e = create_challenge(r.x, p, message)
 
     Schnorr::Signature.new(r.x, (k + e * seckey) % GROUP.order)
   end
@@ -60,7 +60,7 @@ module Schnorr
     raise Schnorr::InvalidSignatureError, 'Invalid signature: r is larger than field size.' if sig.r >= field.prime
     raise Schnorr::InvalidSignatureError, 'Invalid signature: s is larger than group order.' if sig.s >= GROUP.order
 
-    e = create_challenge(sig.r, pubkey, message, GROUP)
+    e = create_challenge(sig.r, pubkey, message)
 
     r = GROUP.new_point(sig.s) + pubkey.multiply_by_scalar(GROUP.order - e)
 
@@ -74,12 +74,11 @@ module Schnorr
   # create signature digest.
   # @param (Integer) x a x coordinate for R.
   # @param (ECDSA::Point) p a public key.
-  # @param (ECDSA::Group) group the group of elliptic curve.
   # @return (Integer) digest e.
-  def create_challenge(x, p, message, group)
-    r_x = ECDSA::Format::IntegerOctetString.encode(x, group.byte_length)
-    p_x = ECDSA::Format::IntegerOctetString.encode(p.x, group.byte_length)
-    (ECDSA.normalize_digest(tagged_hash('BIPSchnorr', r_x + p_x + message), group.bit_length)) % group.order
+  def create_challenge(x, p, message)
+    r_x = ECDSA::Format::IntegerOctetString.encode(x, GROUP.byte_length)
+    p_x = ECDSA::Format::IntegerOctetString.encode(p.x, GROUP.byte_length)
+    (ECDSA.normalize_digest(tagged_hash('BIPSchnorr', r_x + p_x + message), GROUP.bit_length)) % GROUP.order
   end
 
   # Generate tagged hash value.
