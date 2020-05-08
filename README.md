@@ -34,6 +34,9 @@ message = ['5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C'].p
 
 # create signature
 signature = Schnorr.sign(message, private_key)
+# if use auxiliary random data, specify it to the 3rd arguments.
+aux_rand = SecureRandom.bytes(32) # aux_rand must be a 32-byte binary.
+signature = Schnorr.sign(message, private_key, aux_rand)
 
 # signature r value
 signature.r 
