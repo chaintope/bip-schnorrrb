@@ -28,7 +28,7 @@ Or install it yourself as:
 ```ruby
 require 'schnorr'
 
-private_key = 0xB7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
+private_key = ['B7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF'].pack("H*")
 
 message = ['5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C'].pack('H*')
 
@@ -55,9 +55,9 @@ require 'schnorr'
 # public key does not start with 02 or 03.
 public_key = ['DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659'].pack('H*')
 
-signature = ['e7758e20e67a0607433cf8a1f0383a02c7b56792aab71763173ab7085cab8768082aae167787bc3572d15176dc26c073d9b03726aed0b59c728aa6538dc03d57'].pack('H*')
+signature = ['0E12B8C520948A776753A96F21ABD7FDC2D7D0C0DDC90851BE17B04E75EF86A47EF0DA46C4DC4D0D1BCB8668C2CE16C54C7C23A6716EDE303AF86774917CF928'].pack('H*')
 
-message = ['5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C'].pack('H*')
+message = ['243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89'].pack('H*')
 
 # verify signature.(result is true or false)
 result = Schnorr.valid_sig?(message, public_key, signature) 
@@ -73,4 +73,6 @@ This library changes the following functions of `ecdsa` gem in `lib/schnorr/ec_p
 * `ECDSA::Point` class has following two instance methods.
     * `#has_square_y?` check this point does not infinity and square?(y coordinate)
     * `#square?(x)` check whether `x` is a quadratic residue modulo p.
+    * `#has_even_y?` check the y-coordinate of this point is an even.
+    * `#encode(only_x = false)` encode this point into a binary string.
 * `ECDSA::Format::PointOctetString#decode` supports decoding only from x coordinate.

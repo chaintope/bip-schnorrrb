@@ -11,25 +11,32 @@ module Schnorr
 
   # Generate schnorr signature.
   # @param message (String) A message to be signed with binary format.
-  # @param private_key (Integer) The private key.
+  # @param private_key (String) The private key with binary format.
+  # @param aux_rand (String) The auxiliary random data with binary format. If not specified, SecureRandom is used to generate a random value.
   # (The number of times to add the generator point to itself to get the public key.)
   # @return (Schnorr::Signature)
-  def sign(message, private_key)
+  def sign(message, private_key, aux_rand = SecureRandom.bytes(32))
     raise 'The message must be a 32-byte array.' unless message.bytesize == 32
-    p = GROUP.new_point(private_key)
-    seckey = p.has_square_y? ? private_key : GROUP.order - private_key
-    secret = ECDSA::Format::IntegerOctetString.encode(seckey, GROUP.byte_length)
+    d0 = private_key.unpack('H*').first.to_i(16)
+    raise 'private_key must be an integer in the range 1..n-1.' unless 0 < d0 && d0 <= (GROUP.order - 1)
+    raise 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
 
-    k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIPSchnorrDerive', secret + message)) % GROUP.order
+    p = GROUP.new_point(d0)
+    d = p.has_even_y? ? d0 : GROUP.order - d0
+
+    t = d ^ tagged_hash('BIP340/aux', aux_rand).unpack('H*').first.to_i(16)
+    t = ECDSA::Format::IntegerOctetString.encode(t, GROUP.byte_length)
+
+    k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP340/nonce', t + p.encode(true) + message)) % GROUP.order
     raise 'Creation of signature failed. k is zero' if k0.zero?
 
     r = GROUP.new_point(k0)
-
     k = r.has_square_y? ? k0 : GROUP.order - k0
-
     e = create_challenge(r.x, p, message)
 
-    Schnorr::Signature.new(r.x, (k + e * seckey) % GROUP.order)
+    sig = Schnorr::Signature.new(r.x, (k + e * d) % GROUP.order)
+    raise 'The created signature does not pass verification.' unless valid_sig?(message, p.encode(true), sig.encode)
+    sig
   end
 
   # Verifies the given {Signature} and returns true if it is valid.
@@ -49,12 +56,14 @@ module Schnorr
   # @param signature (String) The signature with binary format.
   # @return (Boolean)
   def check_sig!(message, public_key, signature)
+    raise InvalidSignatureError, 'The message must be a 32-byte array.' unless message.bytesize == 32
+    raise InvalidSignatureError, 'The public key must be a 32-byte array.' unless public_key.bytesize == 32
+
+
     sig = Schnorr::Signature.decode(signature)
     pubkey = ECDSA::Format::PointOctetString.decode(public_key, GROUP)
     field = GROUP.field
 
-    raise Schnorr::InvalidSignatureError, 'Invalid signature: r is not in the field.' unless field.include?(sig.r)
-    raise Schnorr::InvalidSignatureError, 'Invalid signature: s is not in the field.' unless field.include?(sig.s)
     raise Schnorr::InvalidSignatureError, 'Invalid signature: r is zero.' if sig.r.zero?
     raise Schnorr::InvalidSignatureError, 'Invalid signature: s is zero.' if sig.s.zero?
     raise Schnorr::InvalidSignatureError, 'Invalid signature: r is larger than field size.' if sig.r >= field.prime
@@ -77,11 +86,13 @@ module Schnorr
   # @return (Integer) digest e.
   def create_challenge(x, p, message)
     r_x = ECDSA::Format::IntegerOctetString.encode(x, GROUP.byte_length)
-    p_x = ECDSA::Format::IntegerOctetString.encode(p.x, GROUP.byte_length)
-    (ECDSA.normalize_digest(tagged_hash('BIPSchnorr', r_x + p_x + message), GROUP.bit_length)) % GROUP.order
+    (ECDSA.normalize_digest(tagged_hash('BIP340/challenge', r_x + p.encode(true) + message), GROUP.bit_length)) % GROUP.order
   end
 
   # Generate tagged hash value.
+  # @param (String) tag tag value.
+  # @param (String) msg the message to be hashed.
+  # @return (String) the hash value with binary format.
   def tagged_hash(tag, msg)
     tag_hash = Digest::SHA256.digest(tag)
     Digest::SHA256.digest(tag_hash + tag_hash + msg)

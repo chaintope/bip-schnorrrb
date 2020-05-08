@@ -59,12 +59,15 @@ module ECDSA
       end
 
       # decode from x coordinate.
+      # @param (String) x_string X-coordinate binary string
+      # @param (ECDSA::Group) group A group of elliptic curves to use.
+      # @return (ECDSA::Point) decoded point.
       def self.decode_from_x(x_string, group)
         x = ECDSA::Format::FieldElementOctetString.decode(x_string, group.field)
         y_sq = group.field.mod(x.pow(3, group.field.prime) + 7)
         y = y_sq.pow((group.field.prime + 1)/4, group.field.prime)
         raise DecodeError, 'Public key not on the curve.' unless y.pow(2, group.field.prime) == y_sq
-        finish_decode(x, y, group)
+        finish_decode(x, y.even? ? y : group.field.prime - y, group)
       end
 
     end
