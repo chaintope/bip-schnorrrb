@@ -8,11 +8,27 @@ module ECDSA
       !infinity? && square?(y)
     end
 
+    # Check the y-coordinate of this point is an even.
+    # @return (Boolean) if even, return true.
+    def has_even_y?
+      y.even?
+    end
+
     # Check whether +x+ is a quadratic residue modulo p.
     # @param x (Integer)
     # @return (Boolean)
     def square?(x)
       x.pow((group.field.prime - 1) / 2, group.field.prime) == 1
+    end
+
+    # Encode this point into a binary string.
+    # @param (Boolean) only_x whether or not to encode only X-coordinate. default is false.
+    def encode(only_x = false)
+      if only_x
+        ECDSA::Format::FieldElementOctetString.encode(x, group.field)
+      else
+        ECDSA::Format::PointOctetString.encode(self, {compression: true})
+      end
     end
 
   end
