@@ -3,7 +3,7 @@
 This is a Ruby implementation of the Schnorr signature scheme over the elliptic curve. 
 This implementation relies on the [ecdsa gem](https://github.com/DavidEGrayson/ruby_ecdsa) for operate elliptic curves.
 
-The code is based upon the initial proposal of Pieter Wuille's [bip-schnorr](https://github.com/sipa/bips/blob/bip-schnorr/bip-schnorr.mediawiki).
+The code is based upon the [BIP340](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki).
 
 ## Installation
 
