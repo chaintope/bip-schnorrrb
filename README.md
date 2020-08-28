@@ -58,7 +58,7 @@ require 'schnorr'
 # public key does not start with 02 or 03.
 public_key = ['DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659'].pack('H*')
 
-signature = ['0E12B8C520948A776753A96F21ABD7FDC2D7D0C0DDC90851BE17B04E75EF86A47EF0DA46C4DC4D0D1BCB8668C2CE16C54C7C23A6716EDE303AF86774917CF928'].pack('H*')
+signature = ['6896BD60EEAE296DB48A229FF71DFE071BDE413E6D43F917DC8DCF8C78DE33418906D11AC976ABCCB20B091292BFF4EA897EFCB639EA871CFA95F6DE339E4B0A'].pack('H*')
 
 message = ['243F6A8885A308D313198A2E03707344A4093822299F31D0082EFA98EC4E6C89'].pack('H*')
 
@@ -74,8 +74,6 @@ sig = Schnorr::Signature.decode(signature)
 This library changes the following functions of `ecdsa` gem in `lib/schnorr/ec_point_ext.rb`.
 
 * `ECDSA::Point` class has following two instance methods.
-    * `#has_square_y?` check this point does not infinity and square?(y coordinate)
-    * `#square?(x)` check whether `x` is a quadratic residue modulo p.
     * `#has_even_y?` check the y-coordinate of this point is an even.
     * `#encode(only_x = false)` encode this point into a binary string.
 * `ECDSA::Format::PointOctetString#decode` supports decoding only from x coordinate.

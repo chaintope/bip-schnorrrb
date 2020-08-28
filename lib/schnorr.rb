@@ -24,14 +24,14 @@ module Schnorr
     p = GROUP.new_point(d0)
     d = p.has_even_y? ? d0 : GROUP.order - d0
 
-    t = d ^ tagged_hash('BIP340/aux', aux_rand).unpack('H*').first.to_i(16)
+    t = d ^ tagged_hash('BIP0340/aux', aux_rand).unpack('H*').first.to_i(16)
     t = ECDSA::Format::IntegerOctetString.encode(t, GROUP.byte_length)
 
-    k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP340/nonce', t + p.encode(true) + message)) % GROUP.order
+    k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP0340/nonce', t + p.encode(true) + message)) % GROUP.order
     raise 'Creation of signature failed. k is zero' if k0.zero?
 
     r = GROUP.new_point(k0)
-    k = r.has_square_y? ? k0 : GROUP.order - k0
+    k = r.has_even_y? ? k0 : GROUP.order - k0
     e = create_challenge(r.x, p, message)
 
     sig = Schnorr::Signature.new(r.x, (k + e * d) % GROUP.order)
@@ -59,7 +59,6 @@ module Schnorr
     raise InvalidSignatureError, 'The message must be a 32-byte array.' unless message.bytesize == 32
     raise InvalidSignatureError, 'The public key must be a 32-byte array.' unless public_key.bytesize == 32
 
-
     sig = Schnorr::Signature.decode(signature)
     pubkey = ECDSA::Format::PointOctetString.decode(public_key, GROUP)
     field = GROUP.field
@@ -73,7 +72,7 @@ module Schnorr
 
     r = GROUP.new_point(sig.s) + pubkey.multiply_by_scalar(GROUP.order - e)
 
-    if r.infinity? || !r.has_square_y? || r.x != sig.r
+    if r.infinity? || !r.has_even_y? || r.x != sig.r
       raise Schnorr::InvalidSignatureError, 'signature verification failed.'
     end
 
@@ -86,7 +85,7 @@ module Schnorr
   # @return (Integer) digest e.
   def create_challenge(x, p, message)
     r_x = ECDSA::Format::IntegerOctetString.encode(x, GROUP.byte_length)
-    (ECDSA.normalize_digest(tagged_hash('BIP340/challenge', r_x + p.encode(true) + message), GROUP.bit_length)) % GROUP.order
+    (ECDSA.normalize_digest(tagged_hash('BIP0340/challenge', r_x + p.encode(true) + message), GROUP.bit_length)) % GROUP.order
   end
 
   # Generate tagged hash value.

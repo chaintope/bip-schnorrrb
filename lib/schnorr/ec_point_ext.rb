@@ -2,23 +2,10 @@
 module ECDSA
   class Point
 
-    # Check this point does not infinity and square?(y coordinate)
-    # @return (Boolean)
-    def has_square_y?
-      !infinity? && square?(y)
-    end
-
     # Check the y-coordinate of this point is an even.
     # @return (Boolean) if even, return true.
     def has_even_y?
       y.even?
-    end
-
-    # Check whether +x+ is a quadratic residue modulo p.
-    # @param x (Integer)
-    # @return (Boolean)
-    def square?(x)
-      x.pow((group.field.prime - 1) / 2, group.field.prime) == 1
     end
 
     # Encode this point into a binary string.
