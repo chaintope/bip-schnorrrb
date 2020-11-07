@@ -4,7 +4,6 @@ require_relative 'schnorr/ec_point_ext'
 require_relative 'schnorr/signature'
 
 module Schnorr
-
   module_function
 
   GROUP = ECDSA::Group::Secp256k1
@@ -17,14 +16,15 @@ module Schnorr
   # @return (Schnorr::Signature)
   def sign(message, private_key, aux_rand = SecureRandom.bytes(32))
     raise 'The message must be a 32-byte array.' unless message.bytesize == 32
-    d0 = private_key.unpack('H*').first.to_i(16)
+
+    d0 = private_key.unpack1('H*').to_i(16)
     raise 'private_key must be an integer in the range 1..n-1.' unless 0 < d0 && d0 <= (GROUP.order - 1)
     raise 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
 
     p = GROUP.new_point(d0)
     d = p.has_even_y? ? d0 : GROUP.order - d0
 
-    t = d ^ tagged_hash('BIP0340/aux', aux_rand).unpack('H*').first.to_i(16)
+    t = d ^ tagged_hash('BIP0340/aux', aux_rand).unpack1('H*').to_i(16)
     t = ECDSA::Format::IntegerOctetString.encode(t, GROUP.byte_length)
 
     k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP0340/nonce', t + p.encode(true) + message)) % GROUP.order
@@ -36,6 +36,7 @@ module Schnorr
 
     sig = Schnorr::Signature.new(r.x, (k + e * d) % GROUP.order)
     raise 'The created signature does not pass verification.' unless valid_sig?(message, p.encode(true), sig.encode)
+
     sig
   end
 
@@ -98,7 +99,6 @@ module Schnorr
   end
 
   class ::Integer
-
     def to_hex
       hex = to_s(16)
       hex.rjust((hex.length / 2.0).ceil * 2, '0')
@@ -111,7 +111,8 @@ module Schnorr
 
     # alternative implementation of Integer#pow for ruby 2.4 and earlier.
     def mod_pow(x, y)
-      return self ** x unless y
+      return self**x unless y
+
       b = self
       result = 1
       while x > 0
@@ -121,7 +122,5 @@ module Schnorr
       end
       result
     end
-
   end
-
 end
