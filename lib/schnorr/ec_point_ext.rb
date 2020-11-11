@@ -29,19 +29,22 @@ module ECDSA
 
         raise DecodeError, 'Point octet string is empty.' if string.empty?
 
-        case string[0].ord
-        when 0
-          check_length string, 1
-          return group.infinity
-        when 2
-          decode_compressed string, group, 0
-        when 3
-          decode_compressed string, group, 1
-        when 4
-          decode_uncompressed string, group
+        if string.bytesize == 32
+          decode_from_x(string, group)
         else
-          return decode_from_x(string, group) if string.bytesize == 32
-          raise DecodeError, 'Unrecognized start byte for point octet string: 0x%x' % string[0].ord
+          case string[0].ord
+          when 0
+            check_length string, 1
+            return group.infinity
+          when 2
+            decode_compressed string, group, 0
+          when 3
+            decode_compressed string, group, 1
+          when 4
+            decode_uncompressed string, group
+          else
+            raise DecodeError, 'Unrecognized start byte for point octet string: 0x%x' % string[0].ord
+          end
         end
       end
 
