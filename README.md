@@ -23,7 +23,7 @@ Or install it yourself as:
 
 ## Usage
 
-### Singing
+### Signing
 
 ```ruby
 require 'schnorr'
