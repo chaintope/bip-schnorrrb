@@ -11,20 +11,20 @@ module Schnorr
   # Generate schnorr signature.
   # @param message (String) A message to be signed with binary format.
   # @param private_key (String) The private key with binary format.
-  # @param aux_rand (String) The auxiliary random data with binary format. If not specified, SecureRandom is used to generate a random value.
-  # (The number of times to add the generator point to itself to get the public key.)
+  # @param aux_rand (String) The auxiliary random data with binary format.
+  # If not specified, random data is not used and the private key is used to calculate the nonce.
   # @return (Schnorr::Signature)
-  def sign(message, private_key, aux_rand = SecureRandom.bytes(32))
+  def sign(message, private_key, aux_rand = nil)
     raise 'The message must be a 32-byte array.' unless message.bytesize == 32
 
     d0 = private_key.unpack1('H*').to_i(16)
     raise 'private_key must be an integer in the range 1..n-1.' unless 0 < d0 && d0 <= (GROUP.order - 1)
-    raise 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
+    raise 'aux_rand must be 32 bytes.' if !aux_rand.nil? && aux_rand.bytesize != 32
 
     p = GROUP.new_point(d0)
     d = p.has_even_y? ? d0 : GROUP.order - d0
 
-    t = d ^ tagged_hash('BIP0340/aux', aux_rand).unpack1('H*').to_i(16)
+    t = aux_rand.nil? ? d : d ^ tagged_hash('BIP0340/aux', aux_rand).unpack1('H*').to_i(16)
     t = ECDSA::Format::IntegerOctetString.encode(t, GROUP.byte_length)
 
     k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP0340/nonce', t + p.encode(true) + message)) % GROUP.order
