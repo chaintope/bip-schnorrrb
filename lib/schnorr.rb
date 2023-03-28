@@ -1,4 +1,4 @@
-require 'ecdsa'
+require 'ecdsa_ext'
 require 'securerandom'
 require_relative 'schnorr/ec_point_ext'
 require_relative 'schnorr/signature'
@@ -21,7 +21,7 @@ module Schnorr
     raise 'private_key must be an integer in the range 1..n-1.' unless 0 < d0 && d0 <= (GROUP.order - 1)
     raise 'aux_rand must be 32 bytes.' if !aux_rand.nil? && aux_rand.bytesize != 32
 
-    p = GROUP.new_point(d0)
+    p = (GROUP.generator.to_jacobian * d0).to_affine
     d = p.has_even_y? ? d0 : GROUP.order - d0
 
     t = aux_rand.nil? ? d : d ^ tagged_hash('BIP0340/aux', aux_rand).unpack1('H*').to_i(16)
@@ -30,7 +30,7 @@ module Schnorr
     k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP0340/nonce', t + p.encode(true) + message)) % GROUP.order
     raise 'Creation of signature failed. k is zero' if k0.zero?
 
-    r = GROUP.new_point(k0)
+    r = (GROUP.generator.to_jacobian * k0).to_affine
     k = r.has_even_y? ? k0 : GROUP.order - k0
     e = create_challenge(r.x, p, message)
 
@@ -70,8 +70,7 @@ module Schnorr
     raise Schnorr::InvalidSignatureError, 'Invalid signature: s is larger than group order.' if sig.s >= GROUP.order
 
     e = create_challenge(sig.r, pubkey, message)
-
-    r = GROUP.new_point(sig.s) + pubkey.multiply_by_scalar(GROUP.order - e)
+    r = (GROUP.generator.to_jacobian * sig.s + pubkey.to_jacobian * (GROUP.order - e)).to_affine
 
     if r.infinity? || !r.has_even_y? || r.x != sig.r
       raise Schnorr::InvalidSignatureError, 'signature verification failed.'
