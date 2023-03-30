@@ -17,9 +17,11 @@ RSpec.describe Schnorr do
         aux_rand = [v['aux_rand']].pack('H*')
         if priv_key
           signature = Schnorr.sign(message, priv_key, aux_rand)
+          expect(Schnorr.sign(message, v['secret key'], v['aux_rand'])).to eq(signature)
           expect(signature.encode.unpack1('H*').upcase).to eq(expected_sig)
         end
         expect(Schnorr.valid_sig?(message, pubkey, [expected_sig].pack('H*'))).to be result
+        expect(Schnorr.valid_sig?(message, v['public key'], [expected_sig].pack('H*'))).to be result
       end
     end
   end

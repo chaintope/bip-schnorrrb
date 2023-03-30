@@ -1,25 +1,32 @@
 require 'ecdsa_ext'
 require 'securerandom'
+require_relative 'schnorr/util'
 require_relative 'schnorr/ec_point_ext'
 require_relative 'schnorr/signature'
+require_relative 'schnorr/musig2'
 
 module Schnorr
+  extend Util
   module_function
 
   GROUP = ECDSA::Group::Secp256k1
 
   # Generate schnorr signature.
-  # @param message (String) A message to be signed with binary format.
-  # @param private_key (String) The private key with binary format.
-  # @param aux_rand (String) The auxiliary random data with binary format.
+  # @param [String] message A message to be signed with binary format.
+  # @param [String] private_key The private key(binary format or hex format).
+  # @param [String] aux_rand The auxiliary random data(binary format or hex format).
   # If not specified, random data is not used and the private key is used to calculate the nonce.
-  # @return (Schnorr::Signature)
+  # @return [Schnorr::Signature]
   def sign(message, private_key, aux_rand = nil)
     raise 'The message must be a 32-byte array.' unless message.bytesize == 32
+    private_key = private_key.unpack1('H*') unless hex_string?(private_key)
 
-    d0 = private_key.unpack1('H*').to_i(16)
+    d0 = private_key.to_i(16)
     raise 'private_key must be an integer in the range 1..n-1.' unless 0 < d0 && d0 <= (GROUP.order - 1)
-    raise 'aux_rand must be 32 bytes.' if !aux_rand.nil? && aux_rand.bytesize != 32
+    if aux_rand
+      aux_rand = [aux_rand].pack("H*") if hex_string?(aux_rand)
+      raise 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
+    end
 
     p = (GROUP.generator.to_jacobian * d0).to_affine
     d = p.has_even_y? ? d0 : GROUP.order - d0
@@ -41,10 +48,10 @@ module Schnorr
   end
 
   # Verifies the given {Signature} and returns true if it is valid.
-  # @param message (String) A message to be signed with binary format.
-  # @param public_key (String) The public key with binary format.
-  # @param signature (String) The signature with binary format.
-  # @return (Boolean) whether signature is valid.
+  # @param [String] message A message to be signed with binary format.
+  # @param [String] public_key The public key with binary format.
+  # @param [String] signature The signature with binary format.
+  # @return [Boolean] whether signature is valid.
   def valid_sig?(message, public_key, signature)
     check_sig!(message, public_key, signature)
   rescue InvalidSignatureError, ECDSA::Format::DecodeError
@@ -52,12 +59,13 @@ module Schnorr
   end
 
   # Verifies the given {Signature} and raises an {InvalidSignatureError} if it is invalid.
-  # @param message (String) A message to be signed with binary format.
-  # @param public_key (String) The public key with binary format.
-  # @param signature (String) The signature with binary format.
-  # @return (Boolean)
+  # @param [String] message A message to be signed with binary format.
+  # @param [String] public_key The public key with binary format.
+  # @param [String] signature The signature with binary format.
+  # @return [Boolean]
   def check_sig!(message, public_key, signature)
     raise InvalidSignatureError, 'The message must be a 32-byte array.' unless message.bytesize == 32
+    public_key = [public_key].pack('H*') if hex_string?(public_key)
     raise InvalidSignatureError, 'The public key must be a 32-byte array.' unless public_key.bytesize == 32
 
     sig = Schnorr::Signature.decode(signature)
@@ -80,18 +88,18 @@ module Schnorr
   end
 
   # create signature digest.
-  # @param (Integer) x a x coordinate for R.
-  # @param (ECDSA::Point) p a public key.
-  # @return (Integer) digest e.
+  # @param [Integer] x A x coordinate for R.
+  # @param [ECDSA::Point] p A public key.
+  # @return [Integer] digest e.
   def create_challenge(x, p, message)
     r_x = ECDSA::Format::IntegerOctetString.encode(x, GROUP.byte_length)
     (ECDSA.normalize_digest(tagged_hash('BIP0340/challenge', r_x + p.encode(true) + message), GROUP.bit_length)) % GROUP.order
   end
 
   # Generate tagged hash value.
-  # @param (String) tag tag value.
-  # @param (String) msg the message to be hashed.
-  # @return (String) the hash value with binary format.
+  # @param [String] tag tag value.
+  # @param [String] msg the message to be hashed.
+  # @return [String] the hash value with binary format.
   def tagged_hash(tag, msg)
     tag_hash = Digest::SHA256.digest(tag)
     Digest::SHA256.digest(tag_hash + tag_hash + msg)

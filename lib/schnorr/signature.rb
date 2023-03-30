@@ -33,6 +33,12 @@ module Schnorr
       ECDSA::Format::IntegerOctetString.encode(r, 32) + ECDSA::Format::IntegerOctetString.encode(s, 32)
     end
 
+    # Check whether same signature or not.
+    # @return [Boolean]
+    def ==(other)
+      return false unless other.is_a?(Signature)
+      r == other.r && s == other.s
+    end
   end
 
 end
