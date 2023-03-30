@@ -3,7 +3,6 @@ require 'securerandom'
 require_relative 'schnorr/util'
 require_relative 'schnorr/ec_point_ext'
 require_relative 'schnorr/signature'
-require_relative 'schnorr/musig2'
 
 module Schnorr
   extend Util
