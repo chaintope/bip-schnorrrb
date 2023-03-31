@@ -43,6 +43,23 @@ RSpec.describe Schnorr::MuSig2 do
         end
       end
     end
+
+    describe 'nonce_gen_vectors' do
+      it do
+        vector = read_json('nonce_gen_vectors.json')
+        vector['test_cases'].each do |test|
+          sec_nonce, pub_nonce = described_class.gen_nonce(
+            pk: test['pk'],
+            sk: test['sk'],
+            agg_pubkey: test['aggpk'],
+            msg: test['msg'],
+            extra_in: test['extra_in'],
+            rand: test['rand_'])
+          expect(sec_nonce).to eq(test['expected_secnonce'].downcase)
+          expect(pub_nonce).to eq(test['expected_pubnonce'].downcase)
+        end
+      end
+    end
   end
 
 end

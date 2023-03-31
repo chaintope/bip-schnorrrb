@@ -40,6 +40,62 @@ module Schnorr
       KeyAggContext.new(q.to_affine, 1, 0)
     end
 
+    # Generate nonce.
+    # @param [String] pk The public key (33 bytes).
+    # @param [String] sk (Optional) The secret key string (32 bytes).
+    # @param [String] agg_pubkey (Optional) The aggregated public key (32 bytes).
+    # @param [String] msg (Optional) The message.
+    # @param [String] extra_in (Optional) The auxiliary input.
+    # @param [String] rand (Optional) A 32-byte array freshly drawn uniformly at random.
+    # @return [Array(String)] The array of sec nonce and pub nonce with hex format.
+    def gen_nonce(pk: , sk: nil, agg_pubkey: nil, msg: nil, extra_in: nil, rand: SecureRandom.bytes(32))
+      rand = [rand].pack("H*") if hex_string?(rand)
+      raise ArgumentError, 'The rand must be 32 bytes.' unless rand.bytesize == 32
+
+      pk = hex_string?(pk) ? [pk].pack('H*') : pk
+      raise ArgumentError, 'The pk must be 33 bytes.' unless pk.bytesize == 33
+
+      rand = if sk.nil?
+               rand
+             else
+               sk = [sk].pack("H*") if hex_string?(sk)
+               raise ArgumentError, "The sk must be 32 bytes." unless sk.bytesize == 32
+               sk.unpack('C*').zip(Schnorr.tagged_hash('MuSig/aux', rand).
+                 unpack('C*')).map{|a, b| a ^ b}.pack('C*')
+             end
+      agg_pubkey = if agg_pubkey
+                     agg_pubkey = hex_string?(agg_pubkey) ? [agg_pubkey].pack('H*') : agg_pubkey
+                     raise ArgumentError, 'The agg_pubkey must be 33 bytes.' unless agg_pubkey.bytesize == 32
+                     agg_pubkey
+                   else
+                     ''
+                   end
+      msg_prefixed = if msg.nil?
+                       [0].pack('C')
+                     else
+                       msg = [msg].pack("H*") if hex_string?(msg)
+                       [1, msg.bytesize].pack('CQ>') + msg
+                     end
+      extra_in = if extra_in
+                   hex_string?(extra_in) ? [extra_in].pack("H*") : extra_in
+                 else
+                   ''
+                 end
+
+      k1 = nonce_hash(rand, pk, agg_pubkey, 0, msg_prefixed, extra_in)
+      k1_i = k1.unpack1('H*').to_i(16) % GROUP.order
+      k2 = nonce_hash(rand, pk, agg_pubkey, 1, msg_prefixed, extra_in)
+      k2_i = k2.unpack1('H*').to_i(16) % GROUP.order
+      raise ArgumentError, 'k1 must not be zero.' if k1_i.zero?
+      raise ArgumentError, 'k2 must not be zero.' if k2_i.zero?
+
+      r1 = (GROUP.generator.to_jacobian * k1_i).to_affine
+      r2 = (GROUP.generator.to_jacobian * k2_i).to_affine
+      pub_nonce = r1.encode + r2.encode
+      sec_nonce = k1 + k2 + pk
+      [sec_nonce.unpack1('H*'), pub_nonce.unpack1('H*')]
+    end
+
     def second_key(pubkeys)
       pubkeys[1..].each do |p|
         return p unless p == pubkeys[0]
@@ -53,5 +109,17 @@ module Schnorr
       Schnorr.tagged_hash('KeyAgg list', pubkeys.join)
     end
     private_class_method :hash_keys
+
+    def nonce_hash(rand, pk, agg_pubkey, i, prefixed_msg, extra_in)
+      buf = ''
+      buf << rand
+      buf << [pk.bytesize].pack('C') + pk
+      buf << [agg_pubkey.bytesize].pack('C') + agg_pubkey
+      buf << prefixed_msg
+      buf << [extra_in.bytesize].pack('N') + extra_in
+      buf << [i].pack('C')
+      Schnorr.tagged_hash('MuSig/nonce', buf)
+    end
+    private_class_method :nonce_hash
   end
 end
