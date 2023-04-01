@@ -14,7 +14,11 @@ module ECDSA
       if only_x
         ECDSA::Format::FieldElementOctetString.encode(x, group.field)
       else
-        ECDSA::Format::PointOctetString.encode(self, {compression: true})
+        if infinity?
+          "\x00" * 33
+        else
+          ECDSA::Format::PointOctetString.encode(self, {compression: true})
+        end
       end
     end
 

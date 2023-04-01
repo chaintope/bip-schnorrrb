@@ -60,6 +60,21 @@ RSpec.describe Schnorr::MuSig2 do
         end
       end
     end
+
+    describe 'nonce_agg_vectors' do
+      it do
+        vector = read_json('nonce_agg_vectors.json')
+        pub_nonces = vector['pnonces']
+        vector['valid_test_cases'].each do |valid|
+          target_pub_nonces = valid['pnonce_indices'].map {|i|pub_nonces[i]}
+          expect(described_class.aggregate_nonce(target_pub_nonces)).to eq(valid['expected'].downcase)
+        end
+        vector['error_test_cases'].each do |error|
+          target_pub_nonces = error['pnonce_indices'].map {|i|pub_nonces[i]}
+          expect{described_class.aggregate_nonce(target_pub_nonces)}.to raise_error(ArgumentError)
+        end
+      end
+    end
   end
 
 end

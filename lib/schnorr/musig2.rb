@@ -96,6 +96,26 @@ module Schnorr
       [sec_nonce.unpack1('H*'), pub_nonce.unpack1('H*')]
     end
 
+    # Aggregate nonce.
+    # @param [Array] nonces Array of public nonce. Each public nonce consists 66 bytes.
+    # @return [String] An aggregated public nonce(R1 || R2) with hex format.
+    def aggregate_nonce(nonces)
+      2.times.map do |i|
+        r = GROUP.generator.to_jacobian.infinity_point
+        nonces = nonces.each do |nonce|
+          nonce = [nonce].pack('H*') if hex_string?(nonce)
+          raise ArgumentError, "" unless nonce.bytesize == 66
+          begin
+            p = ECDSA::Format::PointOctetString.decode(nonce[(i * 33)...(i + 1)*33], GROUP).to_jacobian
+          rescue ECDSA::Format::DecodeError
+            raise ArgumentError, "Invalid public nonce."
+          end
+          r += p
+        end
+        r.to_affine.encode.unpack1('H*')
+      end.join
+    end
+
     def second_key(pubkeys)
       pubkeys[1..].each do |p|
         return p unless p == pubkeys[0]
