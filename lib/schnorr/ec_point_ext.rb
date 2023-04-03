@@ -38,7 +38,8 @@ module ECDSA
         else
           case string[0].ord
           when 0
-            check_length string, 1
+            check_length string, 33
+            raise DecodeError, 'Unrecognized infinity point.' unless ['00' * 33].pack('H*') == string
             return group.infinity
           when 2
             decode_compressed string, group, 0

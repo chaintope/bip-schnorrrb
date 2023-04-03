@@ -31,14 +31,14 @@ module Schnorr
         tweak = hex2bin(tweak)
         raise ArgumentError, 'The tweak must be a 32-bytes.' unless tweak.bytesize == 32
 
-        g = is_xonly_t && !q.has_even_y? ? q.group.field.mod(-1) : 1
+        g = is_xonly_t && !q.has_even_y? ? q.group.order - 1 : 1
         t = tweak.unpack1('H*').to_i(16)
 
         raise ArgumentError, 'The tweak must be less than curve order.' if t >= q.group.order
         new_q = (q.to_jacobian * g + q.group.generator.to_jacobian * t).to_affine
         raise ArgumentError, 'The result of tweaking cannot be infinity.' if new_q.infinity?
-        new_gacc = q.group.field.mod(g * gacc)
-        new_tacc = q.group.field.mod(t + g * tacc)
+        new_gacc = (g * gacc) % q.group.order
+        new_tacc = (t + g * tacc) % q.group.order
         KeyAggContext.new(new_q, new_gacc, new_tacc)
       end
     end

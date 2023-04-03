@@ -1,4 +1,5 @@
 require_relative 'musig2/context/key_agg'
+require_relative 'musig2/context/session'
 
 module Schnorr
   module MuSig2
@@ -118,13 +119,11 @@ module Schnorr
       end
       ['00'].pack("H*") * 33
     end
-    private_class_method :second_key
 
     # Compute
     def hash_keys(pubkeys)
       Schnorr.tagged_hash('KeyAgg list', pubkeys.join)
     end
-    private_class_method :hash_keys
 
     def nonce_hash(rand, pk, agg_pubkey, i, prefixed_msg, extra_in)
       buf = ''
