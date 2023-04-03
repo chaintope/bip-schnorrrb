@@ -29,7 +29,7 @@ module Schnorr
           ctx = ctx.apply_tweak(tweak, @modes[i])
         end
         @agg_ctx = ctx
-        @b = Schnorr.tagged_hash('MuSig/noncecoef', @agg_nonce + agg_ctx.q.encode(true) + @msg).unpack1('H*').to_i(16)
+        @b = Schnorr.tagged_hash('MuSig/noncecoef', @agg_nonce + agg_ctx.q.encode(true) + @msg).bti
         begin
           r1 = ECDSA::Format::PointOctetString.decode(@agg_nonce[0...33], GROUP).to_jacobian
           r2 = ECDSA::Format::PointOctetString.decode(@agg_nonce[33...66], GROUP).to_jacobian
@@ -43,7 +43,7 @@ module Schnorr
       # Get message digest.
       # @return [Integer]
       def e
-        Schnorr.tagged_hash('BIP0340/challenge', r.encode(true) + agg_ctx.q.encode(true) + msg).unpack1('H*').to_i(16)
+        Schnorr.tagged_hash('BIP0340/challenge', r.encode(true) + agg_ctx.q.encode(true) + msg).bti
       end
 
       # Create partial signature.
@@ -53,13 +53,13 @@ module Schnorr
       def sign(nonce, sk)
         nonce = hex2bin(nonce)
         sk = hex2bin(sk)
-        k1 = nonce[0...32].unpack1('H*').to_i(16)
-        k2 = nonce[32...64].unpack1('H*').to_i(16)
+        k1 = nonce[0...32].bti
+        k2 = nonce[32...64].bti
         raise ArgumentError, 'first nonce value is out of range.' if k1 <= 0 || GROUP.order <= k1
         raise ArgumentError, 'second nonce value is out of range.' if k2 <= 0 || GROUP.order <= k2
         k1 = r.has_even_y? ? k1 : GROUP.order - k1
         k2 = r.has_even_y? ? k2 : GROUP.order - k2
-        d = sk.unpack1('H*').to_i(16)
+        d = sk.bti
         raise ArgumentError, 'secret key value is out of range.' if d <= 0 || GROUP.order <= d
         p = (GROUP.generator.to_jacobian * d).to_affine
         raise ArgumentError, 'Public key does not match nonce_gen argument' unless p.encode == nonce[64...97]
@@ -82,7 +82,7 @@ module Schnorr
       def valid_partial_sig?(partial_sig, nonces, signer_index)
         pub_nonce = [MuSig2.aggregate_nonce(nonces)].pack('H*')
         partial_sig = hex2bin(partial_sig)
-        s = partial_sig.unpack1('H*').to_i(16)
+        s = partial_sig.bti
         return false if s >= GROUP.order
         r1 = ECDSA::Format::PointOctetString.decode(pub_nonce[0...33], GROUP).to_jacobian
         r2 = ECDSA::Format::PointOctetString.decode(pub_nonce[33...66], GROUP).to_jacobian
@@ -101,7 +101,7 @@ module Schnorr
         raise ArgumentError, 'The signer\'s pubkey must be included in the list of pubkeys.' unless pubkeys.include?(public_key)
         l = MuSig2.hash_keys(pubkeys)
         pk2 = MuSig2.second_key(pubkeys)
-        public_key == pk2 ? 1 : Schnorr.tagged_hash('KeyAgg coefficient', l + public_key).unpack1('H*').to_i(16)
+        public_key == pk2 ? 1 : Schnorr.tagged_hash('KeyAgg coefficient', l + public_key).bti
       end
     end
   end

@@ -31,7 +31,7 @@ module Schnorr
     p = (GROUP.generator.to_jacobian * d0).to_affine
     d = p.has_even_y? ? d0 : GROUP.order - d0
 
-    t = aux_rand.nil? ? d : d ^ tagged_hash('BIP0340/aux', aux_rand).unpack1('H*').to_i(16)
+    t = aux_rand.nil? ? d : d ^ tagged_hash('BIP0340/aux', aux_rand).bti
     t = ECDSA::Format::IntegerOctetString.encode(t, GROUP.byte_length)
 
     k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP0340/nonce', t + p.encode(true) + message)) % GROUP.order
@@ -103,6 +103,16 @@ module Schnorr
   def tagged_hash(tag, msg)
     tag_hash = Digest::SHA256.digest(tag)
     Digest::SHA256.digest(tag_hash + tag_hash + msg)
+  end
+
+  class ::String
+
+    # Convert binary to integer.
+    # @return [Integer]
+    def bti
+      self.unpack1('H*').to_i(16)
+    end
+
   end
 
   class ::Integer

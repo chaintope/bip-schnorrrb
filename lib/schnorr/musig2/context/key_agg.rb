@@ -32,7 +32,7 @@ module Schnorr
         raise ArgumentError, 'The tweak must be a 32-bytes.' unless tweak.bytesize == 32
 
         g = is_xonly_t && !q.has_even_y? ? q.group.order - 1 : 1
-        t = tweak.unpack1('H*').to_i(16)
+        t = tweak.bti
 
         raise ArgumentError, 'The tweak must be less than curve order.' if t >= q.group.order
         new_q = (q.to_jacobian * g + q.group.generator.to_jacobian * t).to_affine

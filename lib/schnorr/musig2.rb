@@ -35,7 +35,7 @@ module Schnorr
         rescue ECDSA::Format::DecodeError
           raise ArgumentError, 'Invalid public key.'
         end
-        coeff = p == pk2 ? 1 : Schnorr.tagged_hash('KeyAgg coefficient', l + p).unpack1('H*').to_i(16)
+        coeff = p == pk2 ? 1 : Schnorr.tagged_hash('KeyAgg coefficient', l + p).bti
         q += point * coeff
       end
       KeyAggContext.new(q.to_affine, 1, 0)
@@ -80,9 +80,9 @@ module Schnorr
       extra_in = extra_in ? hex2bin(extra_in) : ''
 
       k1 = nonce_hash(rand, pk, agg_pubkey, 0, msg_prefixed, extra_in)
-      k1_i = k1.unpack1('H*').to_i(16) % GROUP.order
+      k1_i = k1.bti % GROUP.order
       k2 = nonce_hash(rand, pk, agg_pubkey, 1, msg_prefixed, extra_in)
-      k2_i = k2.unpack1('H*').to_i(16) % GROUP.order
+      k2_i = k2.bti % GROUP.order
       raise ArgumentError, 'k1 must not be zero.' if k1_i.zero?
       raise ArgumentError, 'k2 must not be zero.' if k2_i.zero?
 
