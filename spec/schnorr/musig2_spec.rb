@@ -3,10 +3,17 @@ require 'spec_helper'
 RSpec.describe Schnorr::MuSig2 do
 
   describe 'Test Vector' do
+    let(:pubkeys) { vector['pubkeys'] }
+    let(:sk) { vector['sk'] }
+    let(:sec_nonces) { vector['secnonces'] }
+    let(:pub_nonces) { vector['pnonces'] }
+    let(:agg_nonces) { vector['aggnonces'] }
+
     describe 'key_sort_vectors' do
+      let(:vector) {  read_json('key_sort_vectors.json') }
+
       it do
-        vector = read_json('key_sort_vectors.json')
-        sorted_keys = described_class.sort_pubkeys(vector['pubkeys'])
+        sorted_keys = described_class.sort_pubkeys(pubkeys)
         expect(sorted_keys).to eq(vector['sorted_pubkeys'])
       end
     end
@@ -17,7 +24,7 @@ RSpec.describe Schnorr::MuSig2 do
       context 'Valid case' do
         it do
           vector['valid_test_cases'].each do |keys|
-            pubkey_candidates = keys['key_indices'].map{|i|vector['pubkeys'][i]}
+            pubkey_candidates = keys['key_indices'].map{|i| pubkeys[i] }
             agg_key_ctx = described_class.aggregate(pubkey_candidates)
             expect(agg_key_ctx.x_only_pubkey).to eq(keys['expected'].downcase)
           end
@@ -28,7 +35,7 @@ RSpec.describe Schnorr::MuSig2 do
         it do
           tweaks = vector['tweaks']
           vector['error_test_cases'].each do |error|
-            pubkey_candidates = error['key_indices'].map{|i| vector['pubkeys'][i] }
+            pubkey_candidates = error['key_indices'].map{|i| pubkeys[i] }
             if error['error']['type'] == 'invalid_contribution'
               expect{described_class.aggregate(pubkey_candidates)}.to raise_error(ArgumentError)
             else
@@ -45,8 +52,8 @@ RSpec.describe Schnorr::MuSig2 do
     end
 
     describe 'nonce_gen_vectors' do
+      let(:vector) { read_json('nonce_gen_vectors.json') }
       it do
-        vector = read_json('nonce_gen_vectors.json')
         vector['test_cases'].each do |test|
           sec_nonce, pub_nonce = described_class.gen_nonce(
             pk: test['pk'],
@@ -62,9 +69,8 @@ RSpec.describe Schnorr::MuSig2 do
     end
 
     describe 'nonce_agg_vectors' do
+      let(:vector) { read_json('nonce_agg_vectors.json') }
       it do
-        vector = read_json('nonce_agg_vectors.json')
-        pub_nonces = vector['pnonces']
         vector['valid_test_cases'].each do |valid|
           target_pub_nonces = valid['pnonce_indices'].map {|i|pub_nonces[i]}
           expect(described_class.aggregate_nonce(target_pub_nonces)).to eq(valid['expected'].downcase)
@@ -77,13 +83,8 @@ RSpec.describe Schnorr::MuSig2 do
     end
 
     describe 'sign_verify_vectors' do
+      let(:vector) { read_json('sign_verify_vectors.json') }
       it do
-        vector = read_json('sign_verify_vectors.json')
-        sk = vector['sk']
-        pubkeys = vector['pubkeys']
-        sec_nonces= vector['secnonces']
-        pub_nonces = vector['pnonces']
-        agg_nonces = vector['aggnonces']
         msgs = vector['msgs']
 
         # The public nonce corresponding to secnonces[0] is at index 0
