@@ -10,5 +10,12 @@ module Schnorr
       hex_chars = str.chars.to_a
       hex_chars.all? { |c| c =~ /[0-9a-fA-F]/ }
     end
+
+    # If +str+ is a hex value, it is converted to binary. Otherwise, it is returned as is.
+    # @param [String] str
+    # @return [String]
+    def hex2bin(str)
+      hex_string?(str) ? [str].pack('H*') : str
+    end
   end
 end

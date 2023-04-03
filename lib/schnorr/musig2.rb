@@ -21,7 +21,7 @@ module Schnorr
     # @return [Schnorr::MuSig2::KeyAggContext]
     def aggregate(pubkeys)
       pubkeys = pubkeys.map do |p|
-        pubkey = hex_string?(p) ? [p].pack('H*') : p
+        pubkey = hex2bin(p)
         raise ArgumentError, "Public key must be 33 bytes." unless pubkey.bytesize == 33
         pubkey
       end
@@ -49,22 +49,22 @@ module Schnorr
     # @param [String] rand (Optional) A 32-byte array freshly drawn uniformly at random.
     # @return [Array(String)] The array of sec nonce and pub nonce with hex format.
     def gen_nonce(pk: , sk: nil, agg_pubkey: nil, msg: nil, extra_in: nil, rand: SecureRandom.bytes(32))
-      rand = [rand].pack("H*") if hex_string?(rand)
+      rand = hex2bin(rand)
       raise ArgumentError, 'The rand must be 32 bytes.' unless rand.bytesize == 32
 
-      pk = hex_string?(pk) ? [pk].pack('H*') : pk
+      pk = hex2bin(pk)
       raise ArgumentError, 'The pk must be 33 bytes.' unless pk.bytesize == 33
 
       rand = if sk.nil?
                rand
              else
-               sk = [sk].pack("H*") if hex_string?(sk)
+               sk = hex2bin(sk)
                raise ArgumentError, "The sk must be 32 bytes." unless sk.bytesize == 32
                sk.unpack('C*').zip(Schnorr.tagged_hash('MuSig/aux', rand).
                  unpack('C*')).map{|a, b| a ^ b}.pack('C*')
              end
       agg_pubkey = if agg_pubkey
-                     agg_pubkey = hex_string?(agg_pubkey) ? [agg_pubkey].pack('H*') : agg_pubkey
+                     agg_pubkey = hex2bin(agg_pubkey)
                      raise ArgumentError, 'The agg_pubkey must be 33 bytes.' unless agg_pubkey.bytesize == 32
                      agg_pubkey
                    else
@@ -73,14 +73,10 @@ module Schnorr
       msg_prefixed = if msg.nil?
                        [0].pack('C')
                      else
-                       msg = [msg].pack("H*") if hex_string?(msg)
+                       msg = hex2bin(msg)
                        [1, msg.bytesize].pack('CQ>') + msg
                      end
-      extra_in = if extra_in
-                   hex_string?(extra_in) ? [extra_in].pack("H*") : extra_in
-                 else
-                   ''
-                 end
+      extra_in = extra_in ? hex2bin(extra_in) : ''
 
       k1 = nonce_hash(rand, pk, agg_pubkey, 0, msg_prefixed, extra_in)
       k1_i = k1.unpack1('H*').to_i(16) % GROUP.order
@@ -103,7 +99,7 @@ module Schnorr
       2.times.map do |i|
         r = GROUP.generator.to_jacobian.infinity_point
         nonces = nonces.each do |nonce|
-          nonce = [nonce].pack('H*') if hex_string?(nonce)
+          nonce = hex2bin(nonce)
           raise ArgumentError, "" unless nonce.bytesize == 66
           begin
             p = ECDSA::Format::PointOctetString.decode(nonce[(i * 33)...(i + 1)*33], GROUP).to_jacobian

@@ -28,7 +28,7 @@ module Schnorr
       # @param [Boolean] is_xonly_t Tweak mode.
       # @return [Schnorr::MuSig2::KeyAggContext] Tweaked context.
       def apply_tweak(tweak, is_xonly_t)
-        tweak = [tweak].pack('H*') if hex_string?(tweak)
+        tweak = hex2bin(tweak)
         raise ArgumentError, 'The tweak must be a 32-bytes.' unless tweak.bytesize == 32
 
         g = is_xonly_t && !q.has_even_y? ? q.group.field.mod(-1) : 1
