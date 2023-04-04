@@ -8,6 +8,7 @@ RSpec.describe Schnorr::MuSig2 do
     let(:sec_nonces) { vector['secnonces'] }
     let(:pub_nonces) { vector['pnonces'] }
     let(:agg_nonces) { vector['aggnonces'] }
+    let(:msgs) { vector['msgs'] }
 
     describe 'key_sort_vectors' do
       let(:vector) {  read_json('key_sort_vectors.json') }
@@ -85,8 +86,6 @@ RSpec.describe Schnorr::MuSig2 do
     describe 'sign_verify_vectors' do
       let(:vector) { read_json('sign_verify_vectors.json') }
       it do
-        msgs = vector['msgs']
-
         # The public nonce corresponding to secnonces[0] is at index 0
         k1 = sec_nonces[0][0...64].to_i(16)
         k2 = sec_nonces[0][64...128].to_i(16)
@@ -109,7 +108,7 @@ RSpec.describe Schnorr::MuSig2 do
           sec_nonce = sec_nonces[0]
           partial_sig = ctx.sign(sec_nonce, sk)
           expect(partial_sig).to eq(test['expected'].downcase)
-          expect(ctx.valid_partial_sig?(partial_sig, target_pub_nonces, signer_index))
+          expect(ctx.valid_partial_sig?(partial_sig, target_pub_nonces[signer_index], signer_index))
         end
         vector['sign_error_test_cases'].each do |test|
           target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
@@ -128,7 +127,7 @@ RSpec.describe Schnorr::MuSig2 do
           msg = msgs[test['msg_index']]
           signer_index = test['signer_index']
           ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg)
-          expect(ctx.valid_partial_sig?(sig, target_pub_nonces, signer_index)).to be false
+          expect(ctx.valid_partial_sig?(sig, target_pub_nonces[signer_index], signer_index)).to be false
         end
         vector['verify_error_test_cases'].each do |test|
           sig = test['sig']
@@ -138,7 +137,7 @@ RSpec.describe Schnorr::MuSig2 do
           signer_index = test['signer_index']
           expect{
             ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg)
-            ctx.valid_partial_sig?(sig, target_pub_nonces, signer_index)
+            ctx.valid_partial_sig?(sig, target_pub_nonces[signer_index], signer_index)
           }.to raise_error(ArgumentError)
         end
       end
@@ -169,7 +168,7 @@ RSpec.describe Schnorr::MuSig2 do
           ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg, tweaks, is_x_only)
           expected = test['expected'].downcase
           expect(ctx.sign(sec_nonce, sk)).to eq(expected)
-          expect(ctx.valid_partial_sig?(expected, target_pub_nonces, signer_index)).to be true
+          expect(ctx.valid_partial_sig?(expected, target_pub_nonces[signer_index], signer_index)).to be true
         end
         vector['error_test_cases'].each do |test|
           target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
@@ -178,6 +177,42 @@ RSpec.describe Schnorr::MuSig2 do
           expect{
             ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg, tweaks, is_x_only)
             ctx.sign(sec_nonce, sk)
+          }.to raise_error(ArgumentError)
+        end
+      end
+    end
+
+    describe 'det_sign_vectors' do
+      let(:vector) { read_json('det_sign_vectors.json') }
+      it do
+        vector['valid_test_cases'].each do |test|
+          target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
+          agg_other_nonce = test['aggothernonce']
+          tweaks = test['tweaks']
+          is_x_only = test['is_xonly']
+          msg = msgs[test['msg_index']]
+          signer_index = test['signer_index']
+          rand = test['rand']
+          expected = test['expected']
+          pub_nonce, partial_sig = described_class.deterministic_sign(
+            sk, agg_other_nonce, target_pubkeys, msg, tweaks: tweaks, modes: is_x_only, rand: rand)
+          expect(pub_nonce).to eq(expected[0].downcase)
+          expect(partial_sig).to eq(expected[1].downcase)
+          pub_nonces = [agg_other_nonce, pub_nonce]
+          agg_nonce = described_class.aggregate_nonce(pub_nonces)
+          ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg, tweaks, is_x_only)
+          expect(ctx.valid_partial_sig?(partial_sig, pub_nonce, signer_index)).to be true
+        end
+        vector['error_test_cases'].each do |test|
+          target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
+          agg_other_nonce = test['aggothernonce']
+          tweaks = test['tweaks']
+          is_x_only = test['is_xonly']
+          msg = msgs[test['msg_index']]
+          rand = test['rand']
+          expect{
+            described_class.deterministic_sign(
+              sk, agg_other_nonce, target_pubkeys, msg, tweaks: tweaks, modes:is_x_only, rand: rand)
           }.to raise_error(ArgumentError)
         end
       end

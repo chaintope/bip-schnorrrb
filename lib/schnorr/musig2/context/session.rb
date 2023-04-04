@@ -49,7 +49,7 @@ module Schnorr
       # Create partial signature.
       # @param [String] nonce The secret nonce.
       # @param [String] sk The secret key.
-      # @return
+      # @return [String] Partial signature with hex format.
       def sign(nonce, sk)
         nonce = hex2bin(nonce)
         sk = hex2bin(sk)
@@ -76,15 +76,15 @@ module Schnorr
 
       # Verify partial signature.
       # @param [String] partial_sig The partial signature.
-      # @param [String] nonces An array of public nonce.
+      # @param [String] pub_nonce A public nonce.
       # @param [Integer] signer_index The index of signer.
       # @return [Boolean]
-      def valid_partial_sig?(partial_sig, nonces, signer_index)
+      def valid_partial_sig?(partial_sig, pub_nonce, signer_index)
         begin
           partial_sig = hex2bin(partial_sig)
+          pub_nonce = hex2bin(pub_nonce)
           s = partial_sig.bti
           return false if s >= GROUP.order
-          pub_nonce = [nonces[signer_index]].pack("H*")
           r1 = ECDSA::Format::PointOctetString.decode(pub_nonce[0...33], GROUP).to_jacobian
           r2 = ECDSA::Format::PointOctetString.decode(pub_nonce[33...66], GROUP).to_jacobian
           r_s = (r1 + r2 * b).to_affine
