@@ -143,6 +143,45 @@ RSpec.describe Schnorr::MuSig2 do
         end
       end
     end
+
+    describe 'tweak_vectors' do
+      let(:vector) { read_json('tweak_vectors.json') }
+      it do
+        # The public key corresponding to sk is at index 0
+        private_key = (Schnorr::GROUP.generator.to_jacobian * sk.to_i(16)).to_affine
+        expect(pubkeys[0].downcase).to eq(private_key.encode.unpack1('H*'))
+        sec_nonce = vector['secnonce']
+        k1 = sec_nonce[0...64].to_i(16)
+        k2 = sec_nonce[64...128].to_i(16)
+        r1 = (Schnorr::GROUP.generator.to_jacobian * k1).to_affine
+        r2 = (Schnorr::GROUP.generator.to_jacobian * k2).to_affine
+        expect(r1.infinity?).to be false
+        expect(r2.infinity?).to be false
+        agg_nonce =vector['aggnonce']
+        expect(described_class.aggregate_nonce(pub_nonces[0..2])).to eq(agg_nonce.downcase)
+        msg = vector['msg']
+        vector['valid_test_cases'].each do |test|
+          target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
+          target_pub_nonces = test['nonce_indices'].map {|i| pub_nonces[i] }
+          tweaks = test['tweak_indices'].map {|i| vector['tweaks'][i] }
+          is_x_only = test['is_xonly']
+          signer_index = test['signer_index']
+          ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg, tweaks, is_x_only)
+          expected = test['expected'].downcase
+          expect(ctx.sign(sec_nonce, sk)).to eq(expected)
+          expect(ctx.valid_partial_sig?(expected, target_pub_nonces, signer_index)).to be true
+        end
+        vector['error_test_cases'].each do |test|
+          target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
+          tweaks = test['tweak_indices'].map {|i| vector['tweaks'][i] }
+          is_x_only = test['is_xonly']
+          expect{
+            ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg, tweaks, is_x_only)
+            ctx.sign(sec_nonce, sk)
+          }.to raise_error(ArgumentError)
+        end
+      end
+    end
   end
 
 end

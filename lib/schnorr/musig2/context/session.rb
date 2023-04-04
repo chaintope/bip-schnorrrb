@@ -80,19 +80,23 @@ module Schnorr
       # @param [Integer] signer_index The index of signer.
       # @return [Boolean]
       def valid_partial_sig?(partial_sig, nonces, signer_index)
-        pub_nonce = [MuSig2.aggregate_nonce(nonces)].pack('H*')
-        partial_sig = hex2bin(partial_sig)
-        s = partial_sig.bti
-        return false if s >= GROUP.order
-        r1 = ECDSA::Format::PointOctetString.decode(pub_nonce[0...33], GROUP).to_jacobian
-        r2 = ECDSA::Format::PointOctetString.decode(pub_nonce[33...66], GROUP).to_jacobian
-        r = (r1 + r2 * b).to_affine
-        r = !r.infinity? && r.has_even_y? ? r : r.negate
-        pk = ECDSA::Format::PointOctetString.decode(pubkeys[signer_index], GROUP)
-        a = key_agg_coeff(pubkeys, pubkeys[signer_index])
-        g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
-        g = (g * agg_ctx.gacc) % GROUP.order
-        GROUP.generator.to_jacobian * s == r + pk * (e * a * g % GROUP.order)
+        begin
+          partial_sig = hex2bin(partial_sig)
+          s = partial_sig.bti
+          return false if s >= GROUP.order
+          pub_nonce = [nonces[signer_index]].pack("H*")
+          r1 = ECDSA::Format::PointOctetString.decode(pub_nonce[0...33], GROUP).to_jacobian
+          r2 = ECDSA::Format::PointOctetString.decode(pub_nonce[33...66], GROUP).to_jacobian
+          r_s = (r1 + r2 * b).to_affine
+          r_s = r.has_even_y? ? r_s : r_s.negate
+          pk = ECDSA::Format::PointOctetString.decode(pubkeys[signer_index], GROUP)
+          a = key_agg_coeff(pubkeys, pubkeys[signer_index])
+          g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
+          g = (g * agg_ctx.gacc) % GROUP.order
+          GROUP.generator.to_jacobian * s == r_s.to_jacobian + pk.to_jacobian * (e * a * g % GROUP.order)
+        rescue ECDSA::Format::DecodeError => e
+          raise ArgumentError, e
+        end
       end
 
       private
