@@ -69,11 +69,82 @@ result = Schnorr.valid_sig?(message, public_key, signature)
 sig = Schnorr::Signature.decode(signature) 
 ```
 
+### MuSig2*
+
+This library support MuSig2* as defined [BIP-327](https://github.com/bitcoin/bips/blob/master/bip-0327.mediawiki).
+
+```ruby
+require 'schnorr'
+
+sk1 = 1 + SecureRandom.random_number(Schnorr::GROUP.order - 1)
+pk1 = (Schnorr::GROUP.generator.to_jacobian * sk1).to_affine.encode
+
+sk2 = 1 + SecureRandom.random_number(Schnorr::GROUP.order - 1)
+pk2 = (Schnorr::GROUP.generator.to_jacobian * sk2).to_affine.encode
+
+pubkeys = [pk1, pk2]
+
+# Key aggregation.
+agg_ctx = Schnorr::MuSig2.aggregate(pubkeys)
+# if you have tweak value.
+agg_ctx = Schnorr::MuSig2.aggregate_with_tweaks(pubkeys, tweaks, modes)
+
+## Aggregated pubkey is
+### Return point:
+agg_ctx.q
+### Return x-only pubkey string
+agg_ctx.x_only_pubkey
+
+msg = SecureRandom.bytes(32)
+
+# Generate secret nonce and public nonce.
+sec_nonce1, pub_nonce1 = Schnorr::MuSig2.gen_nonce(
+        pk: pk1,
+        sk: sk1,  # optional
+        agg_pubkey: agg_ctx.x_only_pubkey,  # optional
+        msg: msg, # optional
+        extra_in: SecureRandom.bytes(4),  # optional
+        rand: SecureRandom.bytes(32)  # optional
+)
+
+## for stateless signer.
+agg_other_nonce = described_class.aggregate_nonce([pub_nonce1])
+pub_nonce2, sig2 = described_class.deterministic_sign(
+        sk2, agg_other_nonce, pubkeys, msg, 
+        tweaks: tweaks, # optional
+        modes: modes, # optional
+        rand: SecureRandom.bytes(32)  # optional
+)
+
+# Nonce aggregation
+agg_nonce = Schnorr::MuSig2.aggregate_nonce([pub_nonce1, pub_nonce2])
+
+# Generate partial signature.
+session_ctx = Schnorr::MuSig2::SessionContext.new(
+        agg_nonce, pubkeys, msg, 
+        tweaks, # optional
+        modes # optional
+)
+sig1 = session_ctx.sign(sec_nonce1, sk1)
+
+# Verify partial signature.
+signer_index = 0
+session_ctx.valid_partial_sig?(sig1, pub_nonce1, signer_index)
+
+# Signature aggregation.
+sig = session_ctx.aggregate_partial_sigs([sig1, sig2])
+
+# Verify signature.
+Schnorr.valid_sig?(msg, agg_ctx.x_only_pubkey, sig.encode)
+```
+
 ## Note
 
 This library changes the following functions of `ecdsa` gem in `lib/schnorr/ec_point_ext.rb`.
 
 * `ECDSA::Point` class has following two instance methods.
-    * `#has_even_y?` check the y-coordinate of this point is an even.
-    * `#encode(only_x = false)` encode this point into a binary string.
-* `ECDSA::Format::PointOctetString#decode` supports decoding only from x coordinate.
+  * `#has_even_y?` check the y-coordinate of this point is an even.
+  * `#encode(only_x = false)` encode this point into a binary string.
+* `ECDSA::Format::PointOctetString#decode`:
+  * supports decoding only from x coordinate.
+  * decode 33 bytes of zeros as infinity points.
