@@ -109,12 +109,12 @@ module Schnorr
     end
 
     # Aggregate public nonces.
-    # @param [Array] nonces Array of public nonce. Each public nonce consists 66 bytes.
+    # @param [Array] pub_nonces Array of public nonce. Each public nonce consists 66 bytes.
     # @return [String] An aggregated public nonce(R1 || R2) with hex format.
-    def aggregate_nonce(nonces)
+    def aggregate_nonce(pub_nonces)
       2.times.map do |i|
         r = GROUP.generator.to_jacobian.infinity_point
-        nonces = nonces.each do |nonce|
+        pub_nonces = pub_nonces.each do |nonce|
           nonce = hex2bin(nonce)
           raise ArgumentError, "" unless nonce.bytesize == 66
           begin

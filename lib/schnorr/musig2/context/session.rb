@@ -2,7 +2,7 @@ module Schnorr
   module MuSig2
     class SessionContext
       include Schnorr::Util
-      attr_reader :agg_nonce, :pubkeys, :tweaks, :modes, :msg, :r, :agg_ctx, :b
+      attr_reader :agg_nonce, :pubkeys, :tweaks, :modes, :msg, :r, :agg_ctx, :b, :used_secnonces
 
       # @param [String] agg_nonce
       # @param [Array(String)] pubkeys An array of public keys.
@@ -10,6 +10,7 @@ module Schnorr
       # @param [Array(String)] tweaks An array of tweaks(32 bytes).
       # @param [Array(Boolean)] modes An array of tweak mode(Boolean).
       def initialize(agg_nonce, pubkeys, msg, tweaks = [], modes = [])
+        @used_secnonces = []
         @agg_nonce = hex2bin(agg_nonce)
         @pubkeys = pubkeys.map do |pubkey|
           pubkey = hex2bin(pubkey)
@@ -46,6 +47,7 @@ module Schnorr
       # @return [String] Partial signature with hex format.
       def sign(nonce, sk)
         nonce = hex2bin(nonce)
+        raise ArgumentError, 'Same nonce already used.' if used_secnonces.include?(nonce)
         sk = hex2bin(sk)
         k1 = nonce[0...32].bti
         k2 = nonce[32...64].bti
@@ -55,9 +57,9 @@ module Schnorr
         k2 = r.has_even_y? ? k2 : GROUP.order - k2
         d = sk.bti
         raise ArgumentError, 'secret key value is out of range.' if d <= 0 || GROUP.order <= d
-        p = (GROUP.generator.to_jacobian * d).to_affine
-        raise ArgumentError, 'Public key does not match nonce_gen argument' unless p.encode == nonce[64...97]
-        a = key_agg_coeff(pubkeys, p.encode)
+        p = (GROUP.generator.to_jacobian * d).to_affine.encode
+        raise ArgumentError, 'Public key does not match nonce_gen argument' unless p == nonce[64...97]
+        a = key_agg_coeff(pubkeys, p)
         g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
         d = (g * agg_ctx.gacc * d)  % GROUP.order
         s = (k1 + b * k2 + e * a * d) % GROUP.order
@@ -65,6 +67,7 @@ module Schnorr
         r2 = (GROUP.generator.to_jacobian * k2).to_affine
         raise ArgumentError, 'R1 can not be infinity.' if r1.infinity?
         raise ArgumentError, 'R2 can not be infinity.' if r2.infinity?
+        used_secnonces << nonce
         ECDSA::Format::IntegerOctetString.encode(s, GROUP.byte_length).unpack1('H*')
       end
 

@@ -252,4 +252,54 @@ RSpec.describe Schnorr::MuSig2 do
     end
   end
 
+  describe 'random test' do
+    it do
+      10.times do |i|
+        sk1 = 1 + SecureRandom.random_number(Schnorr::GROUP.order - 1)
+        sk2 = 1 + SecureRandom.random_number(Schnorr::GROUP.order - 1)
+        pk1 = (Schnorr::GROUP.generator.to_jacobian * sk1).to_affine.encode
+        pk2 = (Schnorr::GROUP.generator.to_jacobian * sk2).to_affine.encode
+        sk1 = ECDSA::Format::IntegerOctetString.encode(sk1, 32)
+        sk2 = ECDSA::Format::IntegerOctetString.encode(sk2, 32)
+        pubkeys = [pk1, pk2]
+        msg = SecureRandom.bytes(32)
+        v = rand(4)
+        tweaks = v.times.map { SecureRandom.bytes(32) }
+        modes = v.times.map { [true, false].sample }
+        agg_ctx = described_class.aggregate_with_tweaks(pubkeys, tweaks, modes)
+        sec_nonce1, pub_nonce1 = described_class.gen_nonce(
+          pk: pk1, sk: sk1, agg_pubkey: agg_ctx.x_only_pubkey, msg: msg, extra_in: [i].pack('N'))
+        # On even iterations use regular signing algorithm for signer 2, otherwise use deterministic signing algorithm.
+        if i.even?
+          t = [Time.now.to_i].pack('Q>')
+          sec_nonce2, pub_nonce2 = described_class.gen_nonce(
+            pk: pk2, sk: sk2, agg_pubkey: agg_ctx.x_only_pubkey, msg: msg, extra_in: t)
+        else
+          agg_other_nonce = described_class.aggregate_nonce([pub_nonce1])
+          rand = SecureRandom.bytes(32)
+          pub_nonce2, sig2 = described_class.deterministic_sign(sk2, agg_other_nonce, pubkeys, msg, tweaks: tweaks, modes: modes, rand: rand)
+        end
+        pub_nonces = [pub_nonce1, pub_nonce2]
+        agg_nonce = described_class.aggregate_nonce(pub_nonces)
+        session_ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, pubkeys, msg, tweaks, modes)
+        sig1 = session_ctx.sign(sec_nonce1, sk1)
+        expect(session_ctx.valid_partial_sig?(sig1, pub_nonce1, 0)).to be true
+        # An exception is thrown if secnonce_1 is accidentally reused
+        expect{session_ctx.sign(sec_nonce1, sk1)}.to raise_error(ArgumentError)
+
+        # Wrong signer index
+        expect(session_ctx.valid_partial_sig?(sig1, pub_nonce1, 1)).to be false
+        # Wrong message
+        session_ctx2 = Schnorr::MuSig2::SessionContext.new(agg_nonce, pubkeys, SecureRandom.bytes(32), tweaks, modes)
+        expect(session_ctx2.valid_partial_sig?(sig1, pub_nonce1, 0)).to be false
+
+        sig2 = session_ctx.sign(sec_nonce2, sk2) if i.even?
+        expect(session_ctx.valid_partial_sig?(sig2, pub_nonce2, 1)).to be true
+
+        sig = session_ctx.aggregate_partial_sigs([sig1, sig2])
+        expect(Schnorr.valid_sig?(msg, agg_ctx.x_only_pubkey, sig.encode)).to be true
+      end
+    end
+  end
+
 end
