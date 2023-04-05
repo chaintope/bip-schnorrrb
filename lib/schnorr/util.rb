@@ -17,5 +17,12 @@ module Schnorr
     def hex2bin(str)
       hex_string?(str) ? [str].pack('H*') : str
     end
+
+    # Convert +str+ to the point of elliptic curve.
+    # @param [String] str A byte string for point.
+    # @return [ECDSA::Point]
+    def string2point(str)
+      ECDSA::Format::PointOctetString.decode(str, GROUP)
+    end
   end
 end

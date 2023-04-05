@@ -31,7 +31,7 @@ module Schnorr
       l = hash_keys(pubkeys)
       pubkeys.each do |p|
         begin
-          point = ECDSA::Format::PointOctetString.decode(p, GROUP).to_jacobian
+          point = string2point(p).to_jacobian
         rescue ECDSA::Format::DecodeError
           raise ArgumentError, 'Invalid public key.'
         end
@@ -118,7 +118,7 @@ module Schnorr
           nonce = hex2bin(nonce)
           raise ArgumentError, "" unless nonce.bytesize == 66
           begin
-            p = ECDSA::Format::PointOctetString.decode(nonce[(i * 33)...(i + 1)*33], GROUP).to_jacobian
+            p = string2point(nonce[(i * 33)...(i + 1)*33]).to_jacobian
             raise ArgumentError, 'Public nonce is infinity' if p.infinity?
           rescue ECDSA::Format::DecodeError
             raise ArgumentError, "Invalid public nonce."

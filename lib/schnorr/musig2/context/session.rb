@@ -26,8 +26,8 @@ module Schnorr
         @agg_ctx = MuSig2.aggregate_with_tweaks(@pubkeys, @tweaks, @modes)
         @b = Schnorr.tagged_hash('MuSig/noncecoef', @agg_nonce + agg_ctx.q.encode(true) + @msg).bti
         begin
-          r1 = ECDSA::Format::PointOctetString.decode(@agg_nonce[0...33], GROUP).to_jacobian
-          r2 = ECDSA::Format::PointOctetString.decode(@agg_nonce[33...66], GROUP).to_jacobian
+          r1 = string2point(@agg_nonce[0...33]).to_jacobian
+          r2 = string2point(@agg_nonce[33...66]).to_jacobian
         rescue ECDSA::Format::DecodeError
           raise ArgumentError, 'Invalid agg_nonce'
         end
@@ -82,11 +82,11 @@ module Schnorr
           pub_nonce = hex2bin(pub_nonce)
           s = partial_sig.bti
           return false if s >= GROUP.order
-          r1 = ECDSA::Format::PointOctetString.decode(pub_nonce[0...33], GROUP).to_jacobian
-          r2 = ECDSA::Format::PointOctetString.decode(pub_nonce[33...66], GROUP).to_jacobian
+          r1 = string2point(pub_nonce[0...33]).to_jacobian
+          r2 = string2point(pub_nonce[33...66]).to_jacobian
           r_s = (r1 + r2 * b).to_affine
           r_s = r.has_even_y? ? r_s : r_s.negate
-          pk = ECDSA::Format::PointOctetString.decode(pubkeys[signer_index], GROUP)
+          pk = string2point(pubkeys[signer_index])
           a = key_agg_coeff(pubkeys, pubkeys[signer_index])
           g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
           g = (g * agg_ctx.gacc) % GROUP.order
