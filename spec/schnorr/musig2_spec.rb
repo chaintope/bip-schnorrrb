@@ -217,6 +217,39 @@ RSpec.describe Schnorr::MuSig2 do
         end
       end
     end
+
+    describe 'sig_agg_vectors' do
+      let(:vector) { read_json('sig_agg_vectors.json') }
+      it do
+        partial_sigs = vector['psigs']
+        vector['valid_test_cases'].each do |test|
+          target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
+          target_pub_nonces = test['nonce_indices'].map {|i| pub_nonces[i] }
+          agg_nonce = test['aggnonce']
+          msg = vector['msg']
+          expect(described_class.aggregate_nonce(target_pub_nonces)).to eq(agg_nonce.downcase)
+          expected = test['expected']
+          tweaks = test['tweak_indices'].map {|i| vector['tweaks'][i] }
+          is_x_only = test['is_xonly']
+          target_partial_sigs = test['psig_indices'].map {|i| partial_sigs[i] }
+          ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg, tweaks, is_x_only)
+          sig = ctx.aggregate_partial_sigs(target_partial_sigs)
+          expect(sig.encode.unpack1('H*')).to eq(expected.downcase)
+          agg_ctx = described_class.aggregate_with_tweaks(target_pubkeys, tweaks, is_x_only)
+          expect(Schnorr.valid_sig?(msg, agg_ctx.x_only_pubkey, sig.encode)).to be true
+        end
+        vector['error_test_cases'].each do |test|
+          target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
+          msg = vector['msg']
+          agg_nonce = test['aggnonce']
+          tweaks = test['tweak_indices'].map {|i| vector['tweaks'][i] }
+          is_x_only = test['is_xonly']
+          target_partial_sigs = test['psig_indices'].map {|i| partial_sigs[i] }
+          ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, target_pubkeys, msg, tweaks, is_x_only)
+          expect{ctx.aggregate_partial_sigs(target_partial_sigs)}.to raise_error(ArgumentError)
+        end
+      end
+    end
   end
 
 end

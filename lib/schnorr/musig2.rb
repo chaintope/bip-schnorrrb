@@ -41,6 +41,22 @@ module Schnorr
       KeyAggContext.new(q.to_affine, 1, 0)
     end
 
+    # Compute aggregate public key with tweaks.
+    # @param [Array[String]] pubkeys An array of public keys.
+    # @param [Array] tweaks An array of tweak.
+    # @param [Array] modes An array of x_only mode.
+    # @return [Schnorr::MuSig2::KeyAggContext]
+    def aggregate_with_tweaks(pubkeys, tweaks, modes)
+      raise ArgumentError, 'tweaks and modes must be same length' unless tweaks.length == modes.length
+      agg_ctx = aggregate(pubkeys)
+      tweaks.each.with_index do |tweak, i|
+        tweak = hex2bin(tweak)
+        raise ArgumentError, 'tweak value must be 32 bytes' unless tweak.bytesize == 32
+        agg_ctx = agg_ctx.apply_tweak(tweak, modes[i])
+      end
+      agg_ctx
+    end
+
     # Generate nonce.
     # @param [String] pk The public key (33 bytes).
     # @param [String] sk (Optional) The secret key string (32 bytes).
@@ -92,7 +108,7 @@ module Schnorr
       [sec_nonce.unpack1('H*'), pub_nonce.unpack1('H*')]
     end
 
-    # Aggregate nonce.
+    # Aggregate public nonces.
     # @param [Array] nonces Array of public nonce. Each public nonce consists 66 bytes.
     # @return [String] An aggregated public nonce(R1 || R2) with hex format.
     def aggregate_nonce(nonces)
@@ -128,10 +144,7 @@ module Schnorr
       msg = hex2bin(msg)
       agg_other_nonce = hex2bin(agg_other_nonce)
       sk_ = rand ? gen_aux(sk, hex2bin(rand)) : sk
-      agg_ctx = aggregate(pubkeys)
-      tweaks.each.with_index do |tweak, i|
-        agg_ctx = agg_ctx.apply_tweak(tweak, modes[i])
-      end
+      agg_ctx = aggregate_with_tweaks(pubkeys, tweaks, modes)
       agg_pk = [agg_ctx.x_only_pubkey].pack("H*")
       k1 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 0).bti
       k2 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 1).bti

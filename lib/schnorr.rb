@@ -64,6 +64,8 @@ module Schnorr
   # @param [String] signature The signature with binary format.
   # @return [Boolean]
   def check_sig!(message, public_key, signature)
+    message = hex2bin(message)
+    public_key = hex2bin(public_key)
     raise InvalidSignatureError, 'The message must be a 32-byte array.' unless message.bytesize == 32
     public_key = [public_key].pack('H*') if hex_string?(public_key)
     raise InvalidSignatureError, 'The public key must be a 32-byte array.' unless public_key.bytesize == 32

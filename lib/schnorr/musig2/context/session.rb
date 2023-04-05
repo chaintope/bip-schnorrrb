@@ -22,13 +22,7 @@ module Schnorr
         @modes.each do |mode|
           raise ArgumentError, 'mode must be Boolean.' unless [TrueClass, FalseClass].include?(mode.class)
         end
-        ctx = KeyAggContext.new(MuSig2.aggregate(@pubkeys).q, 1, 0)
-        @tweaks.each.with_index do |tweak, i|
-          tweak = hex2bin(tweak)
-          raise ArgumentError, 'tweak value must be 32 bytes' unless tweak.bytesize == 32
-          ctx = ctx.apply_tweak(tweak, @modes[i])
-        end
-        @agg_ctx = ctx
+        @agg_ctx = MuSig2.aggregate_with_tweaks(@pubkeys, @tweaks, @modes)
         @b = Schnorr.tagged_hash('MuSig/noncecoef', @agg_nonce + agg_ctx.q.encode(true) + @msg).bti
         begin
           r1 = ECDSA::Format::PointOctetString.decode(@agg_nonce[0...33], GROUP).to_jacobian
@@ -97,6 +91,21 @@ module Schnorr
         rescue ECDSA::Format::DecodeError => e
           raise ArgumentError, e
         end
+      end
+
+      # Aggregate partial signatures.
+      # @param [Array] partial_sigs An array of partial signature.
+      # @return [Schnorr::Signature] An aggregated signature.
+      def aggregate_partial_sigs(partial_sigs)
+        s = 0
+        partial_sigs.each do |partial_sig|
+          s_i = hex2bin(partial_sig).bti
+          raise ArgumentError, 'Invalid partial sig.' if s_i >= GROUP.order
+          s = (s + s_i) % GROUP.order
+        end
+        g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
+        s = (s + e * g * agg_ctx.tacc) % GROUP.order
+        Schnorr::Signature.new(r.x, s)
       end
 
       private
