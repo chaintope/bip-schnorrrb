@@ -18,7 +18,6 @@ module Schnorr
   # If not specified, random data is not used and the private key is used to calculate the nonce.
   # @return [Schnorr::Signature]
   def sign(message, private_key, aux_rand = nil)
-    raise 'The message must be a 32-byte array.' unless message.bytesize == 32
     private_key = private_key.unpack1('H*') unless hex_string?(private_key)
 
     d0 = private_key.to_i(16)
@@ -66,7 +65,6 @@ module Schnorr
   def check_sig!(message, public_key, signature)
     message = hex2bin(message)
     public_key = hex2bin(public_key)
-    raise InvalidSignatureError, 'The message must be a 32-byte array.' unless message.bytesize == 32
     public_key = [public_key].pack('H*') if hex_string?(public_key)
     raise InvalidSignatureError, 'The public key must be a 32-byte array.' unless public_key.bytesize == 32
 
