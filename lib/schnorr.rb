@@ -10,12 +10,14 @@ module Schnorr
   module_function
 
   GROUP = ECDSA::Group::Secp256k1
+  DEFAULT_AUX = ([0x00] * 32).pack('C*')
 
   # Generate schnorr signature.
   # @param [String] message A message to be signed with binary format.
   # @param [String] private_key The private key(binary format or hex format).
   # @param [String] aux_rand The auxiliary random data(binary format or hex format).
-  # If not specified, random data is not used and the private key is used to calculate the nonce.
+  # If aux_rand is nil, it is treated the same as an all-zero one.
+  # See BIP-340 "Default Signing" for a full explanation of this argument and for guidance if randomness is expensive.
   # @return [Schnorr::Signature]
   def sign(message, private_key, aux_rand = nil)
     private_key = private_key.unpack1('H*') unless hex_string?(private_key)
@@ -25,6 +27,8 @@ module Schnorr
     if aux_rand
       aux_rand = [aux_rand].pack("H*") if hex_string?(aux_rand)
       raise 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
+    else
+      aux_rand = DEFAULT_AUX
     end
 
     p = (GROUP.generator.to_jacobian * d0).to_affine

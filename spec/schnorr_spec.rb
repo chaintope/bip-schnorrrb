@@ -31,7 +31,7 @@ RSpec.describe Schnorr do
       message = ['d68ed1f688dacf05b14373b0bda0187b27c79a4ba08a2770e5a7684f54ed42ad'].pack('H*')
       priv_key = ['ecdbab5619c5f7d6feefe5b430869e4590f1ab31b158bbb47c90fc9b370051c6'].pack('H*')
       signature = Schnorr.sign(message, priv_key)
-      expect(signature.encode.unpack1('H*')).to eq('cb6554f93b3d4ad0f8c940d317a29cda93bdd8cde62de32a3fe64f2f6ef2d8c56469ec1f5d24e28f98b8dbf871b7fbc8dc3e72d80ac69b694ae87489053a19c7')
+      expect(signature.encode.unpack1('H*')).to eq('9cbba40f90595e0ea05484725eeeb3fcd421ea6b98189c5c92d30869d4093d2736f6f90310b44e6dc4f0c2b47c7326f76ba7f340f28b0370d5962ef17c9247c9')
     end
   end
 
