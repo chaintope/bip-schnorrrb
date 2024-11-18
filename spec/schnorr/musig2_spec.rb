@@ -96,6 +96,9 @@ RSpec.describe Schnorr::MuSig2 do
         # The aggregate of the first three elements of pnonce is at index 0
         agg_nonce = described_class.aggregate_nonce(pub_nonces[0..2])
         expect(agg_nonce).to eq(agg_nonces[0].downcase)
+        # The aggregate of the first and fourth elements of pnonce is at index 1,
+        # which is the infinity point encoded as a zeroed 33-byte array
+        expect(agg_nonces[1].downcase).to eq(described_class.aggregate_nonce([pub_nonces[0], pub_nonces[3]]))
 
         vector['valid_test_cases'].each do |test|
           target_pubkeys = test['key_indices'].map {|i| pubkeys[i] }
