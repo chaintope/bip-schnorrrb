@@ -150,8 +150,8 @@ RSpec.describe Schnorr::MuSig2 do
       let(:vector) { read_json('tweak_vectors.json') }
       it do
         # The public key corresponding to sk is at index 0
-        private_key = (Schnorr::GROUP.generator.to_jacobian * sk.to_i(16)).to_affine
-        expect(pubkeys[0].downcase).to eq(private_key.encode.unpack1('H*'))
+        public_key = (Schnorr::GROUP.generator.to_jacobian * sk.to_i(16)).to_affine
+        expect(pubkeys[0].downcase).to eq(public_key.encode.unpack1('H*'))
         sec_nonce = vector['secnonce']
         k1 = sec_nonce[0...64].to_i(16)
         k2 = sec_nonce[64...128].to_i(16)
