@@ -69,7 +69,6 @@ module Schnorr
   def check_sig!(message, public_key, signature)
     message = hex2bin(message)
     public_key = hex2bin(public_key)
-    public_key = [public_key].pack('H*') if hex_string?(public_key)
     raise InvalidSignatureError, 'The public key must be a 32-byte array.' unless public_key.bytesize == 32
 
     sig = Schnorr::Signature.decode(signature)
