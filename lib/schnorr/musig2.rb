@@ -101,8 +101,8 @@ module Schnorr
       raise ArgumentError, 'k1 must not be zero.' if k1_i.zero?
       raise ArgumentError, 'k2 must not be zero.' if k2_i.zero?
 
-      r1 = (GROUP.generator.to_jacobian * k1_i).to_affine
-      r2 = (GROUP.generator.to_jacobian * k2_i).to_affine
+      r1 = (GROUP.generator.to_jacobian * pad_scalar(k1_i)).to_affine
+      r2 = (GROUP.generator.to_jacobian * pad_scalar(k2_i)).to_affine
       pub_nonce = r1.encode + r2.encode
       sec_nonce = k1 + k2 + pk
       [sec_nonce.unpack1('H*'), pub_nonce.unpack1('H*')]
@@ -148,12 +148,12 @@ module Schnorr
       agg_pk = [agg_ctx.x_only_pubkey].pack("H*")
       k1 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 0).bti
       k2 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 1).bti
-      r1 = (GROUP.generator.to_jacobian * k1).to_affine
-      r2 = (GROUP.generator.to_jacobian * k2).to_affine
+      r1 = (GROUP.generator.to_jacobian * pad_scalar(k1)).to_affine
+      r2 = (GROUP.generator.to_jacobian * pad_scalar(k2)).to_affine
       raise ArgumentError, 'R1 must not be infinity.' if r1.infinity?
       raise ArgumentError, 'R2 must not be infinity.' if r2.infinity?
       pub_nonce = r1.encode + r2.encode
-      pk = (GROUP.generator.to_jacobian * sk.bti).to_affine
+      pk = (GROUP.generator.to_jacobian * pad_scalar(sk.bti)).to_affine
       sec_nonce = ECDSA::Format::IntegerOctetString.encode(k1, GROUP.byte_length) +
         ECDSA::Format::IntegerOctetString.encode(k2, GROUP.byte_length) + pk.encode
       agg_nonce = aggregate_nonce([pub_nonce, agg_other_nonce])

@@ -31,7 +31,7 @@ module Schnorr
       aux_rand = DEFAULT_AUX
     end
 
-    p = (GROUP.generator.to_jacobian * d0).to_affine
+    p = (GROUP.generator.to_jacobian * pad_scalar(d0)).to_affine
     d = p.has_even_y? ? d0 : GROUP.order - d0
 
     t = aux_rand.nil? ? d : d ^ tagged_hash('BIP0340/aux', aux_rand).bti
@@ -40,7 +40,7 @@ module Schnorr
     k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP0340/nonce', t + p.encode(true) + message)) % GROUP.order
     raise 'Creation of signature failed. k is zero' if k0.zero?
 
-    r = (GROUP.generator.to_jacobian * k0).to_affine
+    r = (GROUP.generator.to_jacobian * pad_scalar(k0)).to_affine
     k = r.has_even_y? ? k0 : GROUP.order - k0
     e = create_challenge(r.x, p, message)
 

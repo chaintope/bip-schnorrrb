@@ -24,5 +24,17 @@ module Schnorr
     def string2point(str)
       ECDSA::Format::PointOctetString.decode(str, GROUP)
     end
+
+    # Pad +scalar+ with the group order so that its bit length is fixed,
+    # mitigating a timing leak of the bit length of a secret scalar.
+    # Since (k + i * n)G = kG, this does not change the resulting point.
+    # Only use this for secret scalars; padding a public scalar just costs an extra doubling.
+    # @param [Integer] scalar A secret scalar.
+    # @return [Integer] The padded scalar.
+    def pad_scalar(scalar)
+      k = scalar + GROUP.order
+      k += GROUP.order if k.bit_length == GROUP.order.bit_length
+      k
+    end
   end
 end

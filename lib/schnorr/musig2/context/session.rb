@@ -57,14 +57,14 @@ module Schnorr
         k2 = r.has_even_y? ? k2 : GROUP.order - k2
         d = sk.bti
         raise ArgumentError, 'secret key value is out of range.' if d <= 0 || GROUP.order <= d
-        p = (GROUP.generator.to_jacobian * d).to_affine.encode
+        p = (GROUP.generator.to_jacobian * pad_scalar(d)).to_affine.encode
         raise ArgumentError, 'Public key does not match nonce_gen argument' unless p == nonce[64...97]
         a = key_agg_coeff(pubkeys, p)
         g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
         d = (g * agg_ctx.gacc * d)  % GROUP.order
         s = (k1 + b * k2 + e * a * d) % GROUP.order
-        r1 = (GROUP.generator.to_jacobian * k1).to_affine
-        r2 = (GROUP.generator.to_jacobian * k2).to_affine
+        r1 = (GROUP.generator.to_jacobian * pad_scalar(k1)).to_affine
+        r2 = (GROUP.generator.to_jacobian * pad_scalar(k2)).to_affine
         raise ArgumentError, 'R1 can not be infinity.' if r1.infinity?
         raise ArgumentError, 'R2 can not be infinity.' if r2.infinity?
         used_secnonces << nonce
