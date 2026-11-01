@@ -61,7 +61,7 @@ module Schnorr
     # @param [String] pk The public key (33 bytes).
     # @param [String] sk (Optional) The secret key string (32 bytes).
     # @param [String] agg_pubkey (Optional) The aggregated public key (32 bytes).
-    # @param [String] msg (Optional) The message to be signed.
+    # @param [String] msg (Optional) The message to be signed(binary format or hex format).
     # @param [String] extra_in (Optional) The auxiliary input.
     # @param [String] rand (Optional) A 32-byte array freshly drawn uniformly at random.
     # @return [Array(String)] The array of sec nonce and pub nonce with hex format.
@@ -118,7 +118,7 @@ module Schnorr
           nonce = hex2bin(nonce)
           raise ArgumentError, "" unless nonce.bytesize == 66
           begin
-            p = string2point(nonce[(i * 33)...(i + 1)*33]).to_jacobian
+            p = string2point(nonce.byteslice(i * 33, 33)).to_jacobian
             raise ArgumentError, 'Public nonce is infinity' if p.infinity?
           rescue ECDSA::Format::DecodeError
             raise ArgumentError, "Invalid public nonce."
@@ -133,7 +133,7 @@ module Schnorr
     # @param [String] sk The secret key string (32 bytes).
     # @param [String] agg_other_nonce Other aggregated nonce.
     # @param [Array] pubkeys An array of public keys.
-    # @param [String] msg The message to be signed.
+    # @param [String] msg The message to be signed(binary format or hex format).
     # @param [Array(String)] tweaks (Optional) An array of tweak value.
     # @param [Array(Boolean)] modes (Optional) An array of tweak mode.
     # @param [String] rand (Optional) A 32-byte array freshly drawn uniformly at random.

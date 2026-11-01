@@ -22,8 +22,8 @@ module Schnorr
     # @return (Signature) signature instance.
     def self.decode(string)
       raise InvalidSignatureError, 'Invalid schnorr signature length.' unless string.bytesize == 64
-      r = string[0...32].bti
-      s = string[32..-1].bti
+      r = string.byteslice(0, 32).bti
+      s = string.byteslice(32, 32).bti
       new(r, s)
     end
 

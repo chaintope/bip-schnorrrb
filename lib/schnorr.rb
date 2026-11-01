@@ -13,13 +13,14 @@ module Schnorr
   DEFAULT_AUX = ([0x00] * 32).pack('C*')
 
   # Generate schnorr signature.
-  # @param [String] message A message to be signed with binary format.
+  # @param [String] message A message to be signed(binary format or hex format).
   # @param [String] private_key The private key(binary format or hex format).
   # @param [String] aux_rand The auxiliary random data(binary format or hex format).
   # If aux_rand is nil, it is treated the same as an all-zero one.
   # See BIP-340 "Default Signing" for a full explanation of this argument and for guidance if randomness is expensive.
   # @return [Schnorr::Signature]
   def sign(message, private_key, aux_rand = nil)
+    message = hex2bin(message)
     private_key = private_key.unpack1('H*') unless hex_string?(private_key)
 
     d0 = private_key.to_i(16)
@@ -51,7 +52,7 @@ module Schnorr
   end
 
   # Verifies the given {Signature} and returns true if it is valid.
-  # @param [String] message A message to be signed with binary format.
+  # @param [String] message A message to be signed(binary format or hex format).
   # @param [String] public_key The public key with binary format.
   # @param [String] signature The signature with binary format.
   # @return [Boolean] whether signature is valid.
@@ -62,7 +63,7 @@ module Schnorr
   end
 
   # Verifies the given {Signature} and raises an {InvalidSignatureError} if it is invalid.
-  # @param [String] message A message to be signed with binary format.
+  # @param [String] message A message to be signed(binary format or hex format).
   # @param [String] public_key The public key with binary format.
   # @param [String] signature The signature with binary format.
   # @return [Boolean]

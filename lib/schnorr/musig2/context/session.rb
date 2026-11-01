@@ -6,12 +6,13 @@ module Schnorr
 
       # @param [String] agg_nonce
       # @param [Array(String)] pubkeys An array of public keys.
-      # @param [String] msg A message to be signed.
+      # @param [String] msg A message to be signed(binary format or hex format).
       # @param [Array(String)] tweaks An array of tweaks(32 bytes).
       # @param [Array(Boolean)] modes An array of tweak mode(Boolean).
       def initialize(agg_nonce, pubkeys, msg, tweaks = [], modes = [])
         @used_secnonces = []
         @agg_nonce = hex2bin(agg_nonce)
+        raise ArgumentError, 'agg_nonce must be 66 bytes' unless @agg_nonce.bytesize == 66
         @pubkeys = pubkeys.map do |pubkey|
           pubkey = hex2bin(pubkey)
           raise ArgumentError, 'pubkey must be 33 bytes' unless pubkey.bytesize == 33
@@ -26,8 +27,8 @@ module Schnorr
         @agg_ctx = MuSig2.aggregate_with_tweaks(@pubkeys, @tweaks, @modes)
         @b = Schnorr.tagged_hash('MuSig/noncecoef', @agg_nonce + agg_ctx.q.encode(true) + @msg).bti
         begin
-          r1 = string2point(@agg_nonce[0...33]).to_jacobian
-          r2 = string2point(@agg_nonce[33...66]).to_jacobian
+          r1 = string2point(@agg_nonce.byteslice(0, 33)).to_jacobian
+          r2 = string2point(@agg_nonce.byteslice(33, 33)).to_jacobian
         rescue ECDSA::Format::DecodeError
           raise ArgumentError, 'Invalid agg_nonce'
         end
@@ -47,10 +48,11 @@ module Schnorr
       # @return [String] Partial signature with hex format.
       def sign(nonce, sk)
         nonce = hex2bin(nonce)
+        raise ArgumentError, 'nonce must be 97 bytes.' unless nonce.bytesize == 97
         raise ArgumentError, 'Same nonce already used.' if used_secnonces.include?(nonce)
         sk = hex2bin(sk)
-        k1 = nonce[0...32].bti
-        k2 = nonce[32...64].bti
+        k1 = nonce.byteslice(0, 32).bti
+        k2 = nonce.byteslice(32, 32).bti
         raise ArgumentError, 'first nonce value is out of range.' if k1 <= 0 || GROUP.order <= k1
         raise ArgumentError, 'second nonce value is out of range.' if k2 <= 0 || GROUP.order <= k2
         k1 = r.has_even_y? ? k1 : GROUP.order - k1
@@ -58,7 +60,7 @@ module Schnorr
         d = sk.bti
         raise ArgumentError, 'secret key value is out of range.' if d <= 0 || GROUP.order <= d
         p = (GROUP.generator.to_jacobian * pad_scalar(d)).to_affine.encode
-        raise ArgumentError, 'Public key does not match nonce_gen argument' unless p == nonce[64...97]
+        raise ArgumentError, 'Public key does not match nonce_gen argument' unless p == nonce.byteslice(64, 33)
         a = key_agg_coeff(pubkeys, p)
         g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
         d = (g * agg_ctx.gacc * d)  % GROUP.order
@@ -80,10 +82,11 @@ module Schnorr
         begin
           partial_sig = hex2bin(partial_sig)
           pub_nonce = hex2bin(pub_nonce)
+          raise ArgumentError, 'pub_nonce must be 66 bytes.' unless pub_nonce.bytesize == 66
           s = partial_sig.bti
           return false if s >= GROUP.order
-          r1 = string2point(pub_nonce[0...33]).to_jacobian
-          r2 = string2point(pub_nonce[33...66]).to_jacobian
+          r1 = string2point(pub_nonce.byteslice(0, 33)).to_jacobian
+          r2 = string2point(pub_nonce.byteslice(33, 33)).to_jacobian
           r_s = (r1 + r2 * b).to_affine
           r_s = r.has_even_y? ? r_s : r_s.negate
           pk = string2point(pubkeys[signer_index])
