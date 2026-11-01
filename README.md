@@ -1,4 +1,4 @@
-# bip-schnorrrb [![Build Status](https://github.com/chaintope/bip-schnorrrb/actions/workflows/ruby.yml/badge.svg?branch=master)](https://travis-ci.org/chaintope/bip-schnorrrb) [![Gem Version](https://badge.fury.io/rb/bip-schnorr.svg)](https://badge.fury.io/rb/bip-schnorr) [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE) 
+# bip-schnorrrb [![Build Status](https://github.com/chaintope/bip-schnorrrb/actions/workflows/ruby.yml/badge.svg?branch=master)](https://github.com/chaintope/bip-schnorrrb/actions/workflows/ruby.yml) [![Gem Version](https://badge.fury.io/rb/bip-schnorr.svg)](https://badge.fury.io/rb/bip-schnorr) [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE) 
 
 This is a Ruby implementation of the Schnorr signature scheme over the elliptic curve. 
 This implementation relies on the [ecdsa gem](https://github.com/DavidEGrayson/ruby_ecdsa) for operate elliptic curves.
@@ -110,8 +110,8 @@ sec_nonce1, pub_nonce1 = Schnorr::MuSig2.gen_nonce(
 )
 
 ## for stateless signer.
-agg_other_nonce = described_class.aggregate_nonce([pub_nonce1])
-pub_nonce2, sig2 = described_class.deterministic_sign(
+agg_other_nonce = Schnorr::MuSig2.aggregate_nonce([pub_nonce1])
+pub_nonce2, sig2 = Schnorr::MuSig2.deterministic_sign(
         sk2, agg_other_nonce, pubkeys, msg, 
         tweaks: tweaks, # optional
         modes: modes, # optional

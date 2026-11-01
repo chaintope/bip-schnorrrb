@@ -14,13 +14,15 @@ module Schnorr
     # @param [Array(String)] pubkeys An array of public keys.
     # @return [Array(String)] Sorted public keys with hex format.
     def sort_pubkeys(pubkeys)
-      pubkeys.map{|p| hex_string?(p) ? p : p.unpack1('H*')}.sort
+      # Sort by the raw bytes so that the result does not depend on the letter case of hex input.
+      pubkeys.map{|p| hex_string?(p) ? p : p.unpack1('H*')}.sort_by{|p| [p].pack('H*')}
     end
 
     # Compute aggregate public key.
     # @param [Array[String]] pubkeys An array of public keys.
     # @return [Schnorr::MuSig2::KeyAggContext]
     def aggregate(pubkeys)
+      raise ArgumentError, 'pubkeys must not be empty.' if pubkeys.empty?
       pubkeys = pubkeys.map do |p|
         pubkey = hex2bin(p)
         raise ArgumentError, "Public key must be 33 bytes." unless pubkey.bytesize == 33
@@ -82,7 +84,7 @@ module Schnorr
              end
       agg_pubkey = if agg_pubkey
                      agg_pubkey = hex2bin(agg_pubkey)
-                     raise ArgumentError, 'The agg_pubkey must be 33 bytes.' unless agg_pubkey.bytesize == 32
+                     raise ArgumentError, 'The agg_pubkey must be 32 bytes.' unless agg_pubkey.bytesize == 32
                      agg_pubkey
                    else
                      ''
@@ -116,9 +118,9 @@ module Schnorr
     def aggregate_nonce(pub_nonces)
       2.times.map do |i|
         r = GROUP.generator.to_jacobian.infinity_point
-        pub_nonces = pub_nonces.each do |nonce|
+        pub_nonces.each do |nonce|
           nonce = hex2bin(nonce)
-          raise ArgumentError, "" unless nonce.bytesize == 66
+          raise ArgumentError, 'Public nonce must be 66 bytes.' unless nonce.bytesize == 66
           begin
             p = string2point(nonce.byteslice(i * 33, 33)).to_jacobian
             raise ArgumentError, 'Public nonce is infinity' if p.infinity?
@@ -143,9 +145,15 @@ module Schnorr
     def deterministic_sign(sk, agg_other_nonce, pubkeys, msg, tweaks: [], modes: [], rand: nil)
       raise ArgumentError, 'The tweaks and modes arrays must have the same length.' unless tweaks.length == modes.length
       sk = hex2bin(sk)
+      raise ArgumentError, 'The sk must be 32 bytes.' unless sk.bytesize == 32
       msg = hex2bin(msg)
       agg_other_nonce = hex2bin(agg_other_nonce)
-      sk_ = rand ? gen_aux(sk, hex2bin(rand)) : sk
+      raise ArgumentError, 'The agg_other_nonce must be 66 bytes.' unless agg_other_nonce.bytesize == 66
+      if rand
+        rand = hex2bin(rand)
+        raise ArgumentError, 'The rand must be 32 bytes.' unless rand.bytesize == 32
+      end
+      sk_ = rand ? gen_aux(sk, rand) : sk
       agg_ctx = aggregate_with_tweaks(pubkeys, tweaks, modes)
       agg_pk = [agg_ctx.x_only_pubkey].pack("H*")
       k1 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 0).bti % GROUP.order

@@ -25,9 +25,9 @@ module Schnorr
     private_key = private_key.unpack1('H*') unless hex_string?(private_key)
 
     d0 = private_key.to_i(16)
-    raise 'private_key must be an integer in the range 1..n-1.' unless 0 < d0 && d0 <= (GROUP.order - 1)
+    raise ArgumentError, 'private_key must be an integer in the range 1..n-1.' unless 0 < d0 && d0 <= (GROUP.order - 1)
     aux_rand = aux_rand ? hex2bin(aux_rand) : DEFAULT_AUX
-    raise 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
+    raise ArgumentError, 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
 
     p = (GROUP.generator.to_jacobian * pad_scalar(d0)).to_affine
     d = p.has_even_y? ? d0 : GROUP.order - d0

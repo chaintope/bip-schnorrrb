@@ -54,6 +54,7 @@ module ECDSA
       end
 
       # decode from x coordinate.
+      # NOTE: This assumes secp256k1 (y^2 = x^3 + 7 and p = 3 mod 4), as used by BIP-340.
       # @param (String) x_string X-coordinate binary string
       # @param (ECDSA::Group) group A group of elliptic curves to use.
       # @return (ECDSA::Point) decoded point.

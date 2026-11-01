@@ -39,7 +39,7 @@ module Schnorr
       # Get message digest.
       # @return [Integer]
       def e
-        Schnorr.tagged_hash('BIP0340/challenge', r.encode(true) + agg_ctx.q.encode(true) + msg).bti
+        @e ||= Schnorr.tagged_hash('BIP0340/challenge', r.encode(true) + agg_ctx.q.encode(true) + msg).bti
       end
 
       # Create partial signature.
@@ -52,6 +52,7 @@ module Schnorr
         nonce_digest = Digest::SHA256.digest(nonce)
         raise ArgumentError, 'Same nonce already used.' if @used_secnonce_digests.include?(nonce_digest)
         sk = hex2bin(sk)
+        raise ArgumentError, 'sk must be 32 bytes.' unless sk.bytesize == 32
         k1 = nonce.byteslice(0, 32).bti
         k2 = nonce.byteslice(32, 32).bti
         raise ArgumentError, 'first nonce value is out of range.' if k1 <= 0 || GROUP.order <= k1
@@ -77,6 +78,9 @@ module Schnorr
       # @param [Integer] signer_index The index of signer.
       # @return [Boolean]
       def valid_partial_sig?(partial_sig, pub_nonce, signer_index)
+        unless signer_index.is_a?(Integer) && signer_index >= 0 && signer_index < pubkeys.length
+          raise ArgumentError, 'signer_index is out of range.'
+        end
         begin
           partial_sig = hex2bin(partial_sig)
           pub_nonce = hex2bin(pub_nonce)
@@ -92,8 +96,8 @@ module Schnorr
           g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
           g = (g * agg_ctx.gacc) % GROUP.order
           GROUP.generator.to_jacobian * s == r_s.to_jacobian + pk.to_jacobian * (e * a * g % GROUP.order)
-        rescue ECDSA::Format::DecodeError => e
-          raise ArgumentError, e
+        rescue ECDSA::Format::DecodeError => err
+          raise ArgumentError, err.message
         end
       end
 
