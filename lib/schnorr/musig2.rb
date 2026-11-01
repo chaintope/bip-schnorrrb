@@ -38,6 +38,7 @@ module Schnorr
         coeff = p == pk2 ? 1 : Schnorr.tagged_hash('KeyAgg coefficient', l + p).bti
         q += point * coeff
       end
+      raise ArgumentError, 'The aggregate public key must not be infinity.' if q.infinity?
       KeyAggContext.new(q.to_affine, 1, 0)
     end
 
@@ -104,7 +105,8 @@ module Schnorr
       r1 = (GROUP.generator.to_jacobian * pad_scalar(k1_i)).to_affine
       r2 = (GROUP.generator.to_jacobian * pad_scalar(k2_i)).to_affine
       pub_nonce = r1.encode + r2.encode
-      sec_nonce = k1 + k2 + pk
+      sec_nonce = ECDSA::Format::IntegerOctetString.encode(k1_i, GROUP.byte_length) +
+        ECDSA::Format::IntegerOctetString.encode(k2_i, GROUP.byte_length) + pk
       [sec_nonce.unpack1('H*'), pub_nonce.unpack1('H*')]
     end
 
@@ -146,12 +148,12 @@ module Schnorr
       sk_ = rand ? gen_aux(sk, hex2bin(rand)) : sk
       agg_ctx = aggregate_with_tweaks(pubkeys, tweaks, modes)
       agg_pk = [agg_ctx.x_only_pubkey].pack("H*")
-      k1 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 0).bti
-      k2 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 1).bti
+      k1 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 0).bti % GROUP.order
+      k2 = deterministic_nonce_hash(sk_, agg_other_nonce, agg_pk, msg, 1).bti % GROUP.order
+      raise ArgumentError, 'k1 must not be zero.' if k1.zero?
+      raise ArgumentError, 'k2 must not be zero.' if k2.zero?
       r1 = (GROUP.generator.to_jacobian * pad_scalar(k1)).to_affine
       r2 = (GROUP.generator.to_jacobian * pad_scalar(k2)).to_affine
-      raise ArgumentError, 'R1 must not be infinity.' if r1.infinity?
-      raise ArgumentError, 'R2 must not be infinity.' if r2.infinity?
       pub_nonce = r1.encode + r2.encode
       pk = (GROUP.generator.to_jacobian * pad_scalar(sk.bti)).to_affine
       sec_nonce = ECDSA::Format::IntegerOctetString.encode(k1, GROUP.byte_length) +

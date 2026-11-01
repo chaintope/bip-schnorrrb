@@ -33,6 +33,8 @@ private_key = ['B7E151628AED2A6ABF7158809CF4F3C762E7160F38B4DA56A784D9045190CFEF
 message = ['5E2D58D8B3BCDF1ABADEC7829054F90DDA9805AAB56C77333024B9D0A508B75C'].pack('H*')
 
 # create signature
+# NOTE: if aux_rand is omitted, it is treated as 32 zero bytes and the signature is deterministic.
+# It is recommended to pass fresh randomness as the 3rd argument (see BIP-340 "Default Signing").
 signature = Schnorr.sign(message, private_key)
 # if use auxiliary random data, specify it to the 3rd arguments.
 aux_rand = SecureRandom.bytes(32) # aux_rand must be a 32-byte binary.

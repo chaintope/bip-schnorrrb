@@ -16,7 +16,8 @@ module Schnorr
   # @param [String] message A message to be signed(binary format or hex format).
   # @param [String] private_key The private key(binary format or hex format).
   # @param [String] aux_rand The auxiliary random data(binary format or hex format).
-  # If aux_rand is nil, it is treated the same as an all-zero one.
+  # If aux_rand is nil, it is treated the same as an all-zero one, which makes the signature deterministic.
+  # It is recommended to pass 32 bytes of fresh randomness (e.g. SecureRandom.bytes(32)).
   # See BIP-340 "Default Signing" for a full explanation of this argument and for guidance if randomness is expensive.
   # @return [Schnorr::Signature]
   def sign(message, private_key, aux_rand = nil)
@@ -25,17 +26,13 @@ module Schnorr
 
     d0 = private_key.to_i(16)
     raise 'private_key must be an integer in the range 1..n-1.' unless 0 < d0 && d0 <= (GROUP.order - 1)
-    if aux_rand
-      aux_rand = [aux_rand].pack("H*") if hex_string?(aux_rand)
-      raise 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
-    else
-      aux_rand = DEFAULT_AUX
-    end
+    aux_rand = aux_rand ? hex2bin(aux_rand) : DEFAULT_AUX
+    raise 'aux_rand must be 32 bytes.' unless aux_rand.bytesize == 32
 
     p = (GROUP.generator.to_jacobian * pad_scalar(d0)).to_affine
     d = p.has_even_y? ? d0 : GROUP.order - d0
 
-    t = aux_rand.nil? ? d : d ^ tagged_hash('BIP0340/aux', aux_rand).bti
+    t = d ^ tagged_hash('BIP0340/aux', aux_rand).bti
     t = ECDSA::Format::IntegerOctetString.encode(t, GROUP.byte_length)
 
     k0 = ECDSA::Format::IntegerOctetString.decode(tagged_hash('BIP0340/nonce', t + p.encode(true) + message)) % GROUP.order
@@ -117,31 +114,5 @@ module Schnorr
       self.unpack1('H*').to_i(16)
     end
 
-  end
-
-  class ::Integer
-    def to_hex
-      hex = to_s(16)
-      hex.rjust((hex.length / 2.0).ceil * 2, '0')
-    end
-
-    def method_missing(method, *args)
-      return mod_pow(args[0], args[1]) if method == :pow && args.length < 3
-      super
-    end
-
-    # alternative implementation of Integer#pow for ruby 2.4 and earlier.
-    def mod_pow(x, y)
-      return self**x unless y
-
-      b = self
-      result = 1
-      while x > 0
-        result = (result * b) % y if (x & 1) == 1
-        x >>= 1
-        b = (b * b) % y
-      end
-      result
-    end
   end
 end

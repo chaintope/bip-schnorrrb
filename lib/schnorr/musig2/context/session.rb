@@ -2,7 +2,7 @@ module Schnorr
   module MuSig2
     class SessionContext
       include Schnorr::Util
-      attr_reader :agg_nonce, :pubkeys, :tweaks, :modes, :msg, :r, :agg_ctx, :b, :used_secnonces
+      attr_reader :agg_nonce, :pubkeys, :tweaks, :modes, :msg, :r, :agg_ctx, :b
 
       # @param [String] agg_nonce
       # @param [Array(String)] pubkeys An array of public keys.
@@ -10,7 +10,7 @@ module Schnorr
       # @param [Array(String)] tweaks An array of tweaks(32 bytes).
       # @param [Array(Boolean)] modes An array of tweak mode(Boolean).
       def initialize(agg_nonce, pubkeys, msg, tweaks = [], modes = [])
-        @used_secnonces = []
+        @used_secnonce_digests = []
         @agg_nonce = hex2bin(agg_nonce)
         raise ArgumentError, 'agg_nonce must be 66 bytes' unless @agg_nonce.bytesize == 66
         @pubkeys = pubkeys.map do |pubkey|
@@ -49,7 +49,8 @@ module Schnorr
       def sign(nonce, sk)
         nonce = hex2bin(nonce)
         raise ArgumentError, 'nonce must be 97 bytes.' unless nonce.bytesize == 97
-        raise ArgumentError, 'Same nonce already used.' if used_secnonces.include?(nonce)
+        nonce_digest = Digest::SHA256.digest(nonce)
+        raise ArgumentError, 'Same nonce already used.' if @used_secnonce_digests.include?(nonce_digest)
         sk = hex2bin(sk)
         k1 = nonce.byteslice(0, 32).bti
         k2 = nonce.byteslice(32, 32).bti
@@ -65,11 +66,8 @@ module Schnorr
         g = agg_ctx.q.has_even_y? ? 1 : GROUP.order - 1
         d = (g * agg_ctx.gacc * d)  % GROUP.order
         s = (k1 + b * k2 + e * a * d) % GROUP.order
-        r1 = (GROUP.generator.to_jacobian * pad_scalar(k1)).to_affine
-        r2 = (GROUP.generator.to_jacobian * pad_scalar(k2)).to_affine
-        raise ArgumentError, 'R1 can not be infinity.' if r1.infinity?
-        raise ArgumentError, 'R2 can not be infinity.' if r2.infinity?
-        used_secnonces << nonce
+        # Only a digest is kept so that the secret nonce itself is not retained in memory.
+        @used_secnonce_digests << nonce_digest
         ECDSA::Format::IntegerOctetString.encode(s, GROUP.byte_length).unpack1('H*')
       end
 

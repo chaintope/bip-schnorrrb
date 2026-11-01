@@ -27,11 +27,15 @@ RSpec.describe Schnorr do
   end
 
   context 'aux rand not provided' do
+    let(:message) { ['d68ed1f688dacf05b14373b0bda0187b27c79a4ba08a2770e5a7684f54ed42ad'].pack('H*') }
+    let(:priv_key) { ['ecdbab5619c5f7d6feefe5b430869e4590f1ab31b158bbb47c90fc9b370051c6'].pack('H*') }
+    let(:pubkey) { (Schnorr::GROUP.generator.to_jacobian * priv_key.bti).to_affine.encode(true) }
+
     it 'create nonce without aux rand' do
-      message = ['d68ed1f688dacf05b14373b0bda0187b27c79a4ba08a2770e5a7684f54ed42ad'].pack('H*')
-      priv_key = ['ecdbab5619c5f7d6feefe5b430869e4590f1ab31b158bbb47c90fc9b370051c6'].pack('H*')
       signature = Schnorr.sign(message, priv_key)
       expect(signature.encode.unpack1('H*')).to eq('9cbba40f90595e0ea05484725eeeb3fcd421ea6b98189c5c92d30869d4093d2736f6f90310b44e6dc4f0c2b47c7326f76ba7f340f28b0370d5962ef17c9247c9')
+      expect(Schnorr.sign(message, priv_key, Schnorr::DEFAULT_AUX)).to eq(signature)
+      expect(Schnorr.valid_sig?(message, pubkey, signature.encode)).to be true
     end
   end
 
