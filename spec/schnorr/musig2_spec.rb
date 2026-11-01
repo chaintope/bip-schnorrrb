@@ -305,4 +305,73 @@ RSpec.describe Schnorr::MuSig2 do
     end
   end
 
+  describe 'input handling' do
+    let(:sk1) { SecureRandom.bytes(32) }
+    let(:sk2) { SecureRandom.bytes(32) }
+    let(:pk1) { (Schnorr::GROUP.generator.to_jacobian * sk1.bti).to_affine.encode }
+    let(:pk2) { (Schnorr::GROUP.generator.to_jacobian * sk2.bti).to_affine.encode }
+    let(:pubkeys) { [pk1, pk2] }
+    let(:msg) { SecureRandom.bytes(32) }
+    let(:nonce1) { described_class.gen_nonce(pk: pk1, sk: sk1, msg: msg) }
+    let(:nonce2) { described_class.gen_nonce(pk: pk2, sk: sk2, msg: msg) }
+    let(:agg_nonce) { described_class.aggregate_nonce([nonce1[1], nonce2[1]]) }
+
+    it 'sorts public keys by bytes regardless of hex letter case' do
+      keys = ['03' + 'ff' * 32, '02' + 'AB' * 32, '02' + 'aa' * 32]
+      expect(described_class.sort_pubkeys(keys)).to eq(['02' + 'aa' * 32, '02' + 'AB' * 32, '03' + 'ff' * 32])
+    end
+
+    it 'rejects an empty list of public keys' do
+      expect { described_class.aggregate([]) }.to raise_error(ArgumentError)
+    end
+
+    it 'handles a UTF-8 message containing non-ASCII characters' do
+      utf8_msg = 'こんにちは'
+      n1 = described_class.gen_nonce(pk: pk1, sk: sk1, msg: utf8_msg)
+      n2 = described_class.gen_nonce(pk: pk2, sk: sk2, msg: utf8_msg)
+      agg = described_class.aggregate_nonce([n1[1], n2[1]])
+      ctx = Schnorr::MuSig2::SessionContext.new(agg, pubkeys, utf8_msg)
+      sig1 = ctx.sign(n1[0], sk1)
+      sig2 = ctx.sign(n2[0], sk2)
+      sig = ctx.aggregate_partial_sigs([sig1, sig2])
+      agg_ctx = described_class.aggregate(pubkeys)
+      expect(Schnorr.valid_sig?(utf8_msg, agg_ctx.x_only_pubkey, sig.encode)).to be true
+    end
+
+    it 'slices nonces by bytes even if the string is tagged as UTF-8' do
+      binary = [agg_nonce].pack('H*')
+      ctx1 = Schnorr::MuSig2::SessionContext.new(binary, pubkeys, msg)
+      ctx2 = Schnorr::MuSig2::SessionContext.new(binary.dup.force_encoding('UTF-8'), pubkeys, msg)
+      expect(ctx2.r).to eq(ctx1.r)
+      sig1 = ctx1.sign([nonce1[0]].pack('H*').force_encoding('UTF-8'), sk1)
+      expect(ctx1.valid_partial_sig?(sig1, [nonce1[1]].pack('H*').force_encoding('UTF-8'), 0)).to be true
+    end
+
+    it 'validates the length of secret inputs' do
+      ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, pubkeys, msg)
+      expect { ctx.sign(nonce1[0][0...-2], sk1) }.to raise_error(ArgumentError, /97 bytes/)
+      expect { ctx.sign(nonce1[0], sk1[0...-1]) }.to raise_error(ArgumentError, /32 bytes/)
+      other = described_class.aggregate_nonce([nonce1[1]])
+      expect { described_class.deterministic_sign(sk2, other, pubkeys, msg, rand: "\x01".b) }.to raise_error(ArgumentError, /32 bytes/)
+      expect { described_class.deterministic_sign(sk2[0...-1], other, pubkeys, msg) }.to raise_error(ArgumentError, /32 bytes/)
+      expect { described_class.deterministic_sign(sk2, other[0...-2], pubkeys, msg) }.to raise_error(ArgumentError, /66 bytes/)
+      expect { Schnorr::MuSig2::SessionContext.new(agg_nonce[0...-2], pubkeys, msg) }.to raise_error(ArgumentError, /66 bytes/)
+    end
+
+    it 'raises ArgumentError for an out-of-range signer index' do
+      ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, pubkeys, msg)
+      sig1 = ctx.sign(nonce1[0], sk1)
+      expect { ctx.valid_partial_sig?(sig1, nonce1[1], 2) }.to raise_error(ArgumentError)
+      expect { ctx.valid_partial_sig?(sig1, nonce1[1], -1) }.to raise_error(ArgumentError)
+      expect { ctx.valid_partial_sig?(sig1, nonce1[1][0...-2], 0) }.to raise_error(ArgumentError)
+    end
+
+    it 'does not expose used secret nonces' do
+      ctx = Schnorr::MuSig2::SessionContext.new(agg_nonce, pubkeys, msg)
+      ctx.sign(nonce1[0], sk1)
+      expect(ctx).not_to respond_to(:used_secnonces)
+      expect(ctx.instance_variables.none? { |v| ctx.instance_variable_get(v) == [nonce1[0]].pack('H*') }).to be true
+    end
+  end
+
 end

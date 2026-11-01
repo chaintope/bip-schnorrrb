@@ -70,7 +70,11 @@ module Schnorr
     raise InvalidSignatureError, 'The public key must be a 32-byte array.' unless public_key.bytesize == 32
 
     sig = Schnorr::Signature.decode(signature)
-    pubkey = ECDSA::Format::PointOctetString.decode_from_x(public_key, GROUP)
+    pubkey = begin
+      ECDSA::Format::PointOctetString.decode_from_x(public_key, GROUP)
+    rescue ECDSA::Format::DecodeError => e
+      raise InvalidSignatureError, "Invalid public key: #{e.message}"
+    end
     field = GROUP.field
 
     raise Schnorr::InvalidSignatureError, 'Invalid signature: r is zero.' if sig.r.zero?

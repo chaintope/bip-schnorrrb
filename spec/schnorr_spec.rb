@@ -39,4 +39,46 @@ RSpec.describe Schnorr do
     end
   end
 
+  describe 'input handling' do
+    let(:priv_key) { ['ecdbab5619c5f7d6feefe5b430869e4590f1ab31b158bbb47c90fc9b370051c6'].pack('H*') }
+    let(:pubkey) { (Schnorr::GROUP.generator.to_jacobian * priv_key.bti).to_affine.encode(true) }
+
+    it 'signs and verifies a UTF-8 message containing non-ASCII characters' do
+      message = 'こんにちは'
+      signature = Schnorr.sign(message, priv_key)
+      expect(Schnorr.valid_sig?(message, pubkey, signature.encode)).to be true
+      expect(Schnorr.valid_sig?(message.b, pubkey, signature.encode)).to be true
+    end
+
+    it 'treats a hex message the same in signing and verification' do
+      hex = '5e2d58d8b3bcdf1abadec7829054f90dda9805aab56c77333024b9d0a508b75c'
+      signature = Schnorr.sign(hex, priv_key)
+      expect(signature).to eq(Schnorr.sign([hex].pack('H*'), priv_key))
+      expect(Schnorr.valid_sig?(hex, pubkey, signature.encode)).to be true
+      expect(Schnorr.valid_sig?([hex].pack('H*'), pubkey, signature.encode)).to be true
+    end
+
+    it 'decodes a signature by bytes even if the string is tagged as UTF-8' do
+      # 64 bytes which form 32 two-byte UTF-8 characters when tagged as UTF-8.
+      bytes = ("\xC3\xA9".b * 32)
+      expect(Schnorr::Signature.decode(bytes.dup.force_encoding('UTF-8'))).to eq(Schnorr::Signature.decode(bytes))
+      signature = Schnorr.sign(SecureRandom.bytes(32), priv_key)
+      expect(Schnorr::Signature.decode(signature.encode.dup.force_encoding('UTF-8'))).to eq(signature)
+    end
+
+    it 'raises ArgumentError for an invalid private key or aux_rand' do
+      message = SecureRandom.bytes(32)
+      expect { Schnorr.sign(message, "\x00".b * 32) }.to raise_error(ArgumentError)
+      expect { Schnorr.sign(message, priv_key, "\x00".b * 31) }.to raise_error(ArgumentError)
+    end
+
+    it 'raises InvalidSignatureError for a public key that is not on the curve' do
+      message = SecureRandom.bytes(32)
+      signature = Schnorr.sign(message, priv_key)
+      expect { Schnorr.check_sig!(message, "\x05".b * 32, signature.encode) }.to raise_error(Schnorr::InvalidSignatureError)
+      expect(Schnorr.valid_sig?(message, "\x05".b * 32, signature.encode)).to be false
+    end
+  end
+
 end
+
